@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, Bot, User, AlertTriangle, CheckCircle, Activity, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { symptomResponses, commonSymptoms } from "@/data/symptoms";
+import SkullModel3D from "@/components/SkullModel3D";
+import { useFallDetection } from "@/hooks/useFallDetection";
+import FallDetectionOverlay from "@/components/FallDetectionOverlay";
+import { toast } from "@/hooks/use-toast";
 
 interface Message {
   id: number;
@@ -33,7 +37,32 @@ const SymptomAnalyzer = () => {
   ]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [showSkullModel, setShowSkullModel] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Fall detection handler
+  const handleFallSOS = useCallback((location: { lat: number; lng: number } | null) => {
+    toast({
+      title: "Emergency SOS Triggered",
+      description: location 
+        ? `Emergency services notified. Location: ${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`
+        : "Emergency services notified. Location unavailable.",
+      variant: "destructive",
+    });
+  }, []);
+
+  const {
+    isFallDetected,
+    countdown,
+    location,
+    dismissFall,
+    startMonitoring,
+  } = useFallDetection(handleFallSOS);
+
+  // Start fall detection monitoring when component mounts
+  useEffect(() => {
+    startMonitoring();
+  }, [startMonitoring]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -62,13 +91,14 @@ const SymptomAnalyzer = () => {
     };
   };
 
-  const handleSend = () => {
-    if (!input.trim()) return;
+  const handleSend = (customInput?: string) => {
+    const textToSend = customInput || input;
+    if (!textToSend.trim()) return;
 
     const userMessage: Message = {
       id: messages.length + 1,
       type: "user",
-      content: input
+      content: textToSend
     };
 
     setMessages(prev => [...prev, userMessage]);
@@ -77,7 +107,7 @@ const SymptomAnalyzer = () => {
 
     // Simulate AI response delay
     setTimeout(() => {
-      const analysis = analyzeSymptoms(input);
+      const analysis = analyzeSymptoms(textToSend);
       const botMessage: Message = {
         id: messages.length + 2,
         type: "bot",
@@ -90,7 +120,17 @@ const SymptomAnalyzer = () => {
   };
 
   const handleQuickSymptom = (symptom: string) => {
-    setInput(`I'm experiencing ${symptom.toLowerCase()}`);
+    // If headache is selected, show the 3D skull model
+    if (symptom.toLowerCase() === "headache") {
+      setShowSkullModel(true);
+    } else {
+      setInput(`I'm experiencing ${symptom.toLowerCase()}`);
+    }
+  };
+
+  const handleSkullLocationSelect = (location: string, description: string) => {
+    const message = `I'm experiencing a headache in the ${location.toLowerCase()}. ${description}`;
+    handleSend(message);
   };
 
   const handleReset = () => {
@@ -257,7 +297,7 @@ const SymptomAnalyzer = () => {
                   className="flex-1"
                   onKeyDown={(e) => e.key === "Enter" && handleSend()}
                 />
-                <Button variant="hero" onClick={handleSend} disabled={!input.trim() || isTyping}>
+                <Button variant="hero" onClick={() => handleSend()} disabled={!input.trim() || isTyping}>
                   <Send className="w-4 h-4" />
                 </Button>
               </div>
@@ -270,6 +310,21 @@ const SymptomAnalyzer = () => {
       </main>
 
       <Footer />
+
+      {/* 3D Skull Model for Headache */}
+      <SkullModel3D 
+        isOpen={showSkullModel}
+        onClose={() => setShowSkullModel(false)}
+        onSelectLocation={handleSkullLocationSelect}
+      />
+
+      {/* Fall Detection Overlay */}
+      <FallDetectionOverlay
+        isVisible={isFallDetected}
+        countdown={countdown}
+        location={location}
+        onDismiss={dismissFall}
+      />
     </div>
   );
 };
