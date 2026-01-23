@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, Text } from "@react-three/drei";
+import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Brain } from "lucide-react";
@@ -19,7 +19,7 @@ const headRegions: HeadRegion[] = [
   {
     id: "frontal",
     name: "Frontal (Forehead)",
-    position: [0, 0.8, 0.9],
+    position: [0, 0.6, 1.1],
     color: "#ef4444",
     hoverColor: "#dc2626",
     description: "Front of the head, above the eyes"
@@ -27,7 +27,7 @@ const headRegions: HeadRegion[] = [
   {
     id: "temporal-left",
     name: "Left Temple",
-    position: [-1, 0.3, 0.3],
+    position: [-1.05, 0.1, 0.3],
     color: "#f97316",
     hoverColor: "#ea580c",
     description: "Left side of the head, near the ear"
@@ -35,7 +35,7 @@ const headRegions: HeadRegion[] = [
   {
     id: "temporal-right",
     name: "Right Temple",
-    position: [1, 0.3, 0.3],
+    position: [1.05, 0.1, 0.3],
     color: "#f97316",
     hoverColor: "#ea580c",
     description: "Right side of the head, near the ear"
@@ -43,7 +43,7 @@ const headRegions: HeadRegion[] = [
   {
     id: "parietal",
     name: "Top of Head",
-    position: [0, 1.2, 0],
+    position: [0, 1.1, 0],
     color: "#eab308",
     hoverColor: "#ca8a04",
     description: "Crown of the head"
@@ -51,7 +51,7 @@ const headRegions: HeadRegion[] = [
   {
     id: "occipital",
     name: "Back of Head",
-    position: [0, 0.5, -0.9],
+    position: [0, 0.3, -1],
     color: "#22c55e",
     hoverColor: "#16a34a",
     description: "Back of the head, above the neck"
@@ -59,7 +59,7 @@ const headRegions: HeadRegion[] = [
   {
     id: "whole-head",
     name: "Entire Head",
-    position: [0, -0.5, 0],
+    position: [0, -0.8, 0],
     color: "#8b5cf6",
     hoverColor: "#7c3aed",
     description: "Pain affecting the whole head"
@@ -78,7 +78,7 @@ const SkullRegion = ({ region, onSelect, isHovered, onHover }: SkullRegionProps)
   
   useFrame(() => {
     if (meshRef.current) {
-      const targetScale = isHovered ? 1.2 : 1;
+      const targetScale = isHovered ? 1.3 : 1;
       meshRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
     }
   });
@@ -91,63 +91,192 @@ const SkullRegion = ({ region, onSelect, isHovered, onHover }: SkullRegionProps)
       onPointerOver={() => onHover(region.id)}
       onPointerOut={() => onHover(null)}
     >
-      <sphereGeometry args={[0.25, 32, 32]} />
+      <sphereGeometry args={[0.18, 32, 32]} />
       <meshStandardMaterial 
         color={isHovered ? region.hoverColor : region.color} 
         emissive={isHovered ? region.hoverColor : region.color}
-        emissiveIntensity={isHovered ? 0.3 : 0.1}
+        emissiveIntensity={isHovered ? 0.4 : 0.15}
       />
     </mesh>
   );
 };
 
-const SkullBase = () => {
+const RealisticSkull = () => {
   const skullRef = useRef<THREE.Group>(null);
   
   useFrame((state) => {
     if (skullRef.current) {
-      skullRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.3) * 0.1;
+      skullRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.3) * 0.15;
     }
   });
 
   return (
     <group ref={skullRef}>
-      {/* Main skull shape - ellipsoid */}
-      <mesh position={[0, 0.4, 0]}>
-        <sphereGeometry args={[1.1, 32, 32]} />
+      {/* Main cranium - elongated sphere */}
+      <mesh position={[0, 0.35, 0]}>
+        <sphereGeometry args={[0.95, 64, 64]} />
         <meshStandardMaterial 
-          color="#f5f5f4" 
-          transparent 
-          opacity={0.3}
+          color="#f5f0e8" 
+          roughness={0.6}
+          metalness={0.05}
+        />
+      </mesh>
+      
+      {/* Forehead prominence */}
+      <mesh position={[0, 0.55, 0.7]}>
+        <sphereGeometry args={[0.55, 32, 32]} />
+        <meshStandardMaterial 
+          color="#f5f0e8"
+          roughness={0.6}
+        />
+      </mesh>
+      
+      {/* Left temporal bone */}
+      <mesh position={[-0.85, 0.15, 0.1]}>
+        <sphereGeometry args={[0.35, 32, 32]} />
+        <meshStandardMaterial 
+          color="#ebe5db"
+          roughness={0.6}
+        />
+      </mesh>
+      
+      {/* Right temporal bone */}
+      <mesh position={[0.85, 0.15, 0.1]}>
+        <sphereGeometry args={[0.35, 32, 32]} />
+        <meshStandardMaterial 
+          color="#ebe5db"
+          roughness={0.6}
+        />
+      </mesh>
+      
+      {/* Occipital bone (back of skull) */}
+      <mesh position={[0, 0.2, -0.65]}>
+        <sphereGeometry args={[0.6, 32, 32]} />
+        <meshStandardMaterial 
+          color="#f0ebe3"
+          roughness={0.6}
+        />
+      </mesh>
+      
+      {/* Brow ridge left */}
+      <mesh position={[-0.35, 0.05, 0.85]} rotation={[0, 0, 0.3]}>
+        <capsuleGeometry args={[0.08, 0.25, 8, 16]} />
+        <meshStandardMaterial 
+          color="#e8e2d8"
           roughness={0.5}
         />
       </mesh>
       
-      {/* Jaw area */}
-      <mesh position={[0, -0.4, 0.3]}>
-        <sphereGeometry args={[0.5, 32, 32]} />
+      {/* Brow ridge right */}
+      <mesh position={[0.35, 0.05, 0.85]} rotation={[0, 0, -0.3]}>
+        <capsuleGeometry args={[0.08, 0.25, 8, 16]} />
         <meshStandardMaterial 
-          color="#f5f5f4" 
-          transparent 
-          opacity={0.2}
+          color="#e8e2d8"
           roughness={0.5}
         />
       </mesh>
       
-      {/* Eyes */}
-      <mesh position={[-0.35, 0.2, 0.85]}>
-        <sphereGeometry args={[0.15, 16, 16]} />
-        <meshStandardMaterial color="#1a1a1a" />
-      </mesh>
-      <mesh position={[0.35, 0.2, 0.85]}>
-        <sphereGeometry args={[0.15, 16, 16]} />
-        <meshStandardMaterial color="#1a1a1a" />
+      {/* Left eye socket */}
+      <mesh position={[-0.32, -0.05, 0.8]}>
+        <sphereGeometry args={[0.18, 32, 32]} />
+        <meshStandardMaterial 
+          color="#1a1a1a"
+        />
       </mesh>
       
-      {/* Nose */}
-      <mesh position={[0, -0.1, 1]}>
-        <coneGeometry args={[0.08, 0.2, 8]} />
-        <meshStandardMaterial color="#e7e5e4" />
+      {/* Right eye socket */}
+      <mesh position={[0.32, -0.05, 0.8]}>
+        <sphereGeometry args={[0.18, 32, 32]} />
+        <meshStandardMaterial 
+          color="#1a1a1a"
+        />
+      </mesh>
+      
+      {/* Nasal bone */}
+      <mesh position={[0, -0.2, 0.9]} rotation={[0.3, 0, 0]}>
+        <boxGeometry args={[0.12, 0.25, 0.15]} />
+        <meshStandardMaterial 
+          color="#e8e2d8"
+          roughness={0.5}
+        />
+      </mesh>
+      
+      {/* Nasal cavity (dark) */}
+      <mesh position={[0, -0.35, 0.85]}>
+        <coneGeometry args={[0.1, 0.2, 3]} />
+        <meshStandardMaterial color="#0a0a0a" />
+      </mesh>
+      
+      {/* Upper jaw / maxilla */}
+      <mesh position={[0, -0.5, 0.55]}>
+        <boxGeometry args={[0.55, 0.25, 0.45]} />
+        <meshStandardMaterial 
+          color="#f0ebe3"
+          roughness={0.6}
+        />
+      </mesh>
+      
+      {/* Lower jaw / mandible */}
+      <mesh position={[0, -0.75, 0.4]}>
+        <boxGeometry args={[0.5, 0.2, 0.4]} />
+        <meshStandardMaterial 
+          color="#e8e2d8"
+          roughness={0.6}
+        />
+      </mesh>
+      
+      {/* Jaw corners - left */}
+      <mesh position={[-0.3, -0.65, 0.15]}>
+        <sphereGeometry args={[0.12, 16, 16]} />
+        <meshStandardMaterial 
+          color="#e8e2d8"
+          roughness={0.6}
+        />
+      </mesh>
+      
+      {/* Jaw corners - right */}
+      <mesh position={[0.3, -0.65, 0.15]}>
+        <sphereGeometry args={[0.12, 16, 16]} />
+        <meshStandardMaterial 
+          color="#e8e2d8"
+          roughness={0.6}
+        />
+      </mesh>
+      
+      {/* Cheekbone left - zygomatic */}
+      <mesh position={[-0.55, -0.15, 0.6]}>
+        <sphereGeometry args={[0.18, 16, 16]} />
+        <meshStandardMaterial 
+          color="#ebe5db"
+          roughness={0.5}
+        />
+      </mesh>
+      
+      {/* Cheekbone right - zygomatic */}
+      <mesh position={[0.55, -0.15, 0.6]}>
+        <sphereGeometry args={[0.18, 16, 16]} />
+        <meshStandardMaterial 
+          color="#ebe5db"
+          roughness={0.5}
+        />
+      </mesh>
+      
+      {/* Teeth hint - upper */}
+      <mesh position={[0, -0.58, 0.75]}>
+        <boxGeometry args={[0.35, 0.06, 0.05]} />
+        <meshStandardMaterial 
+          color="#ffffff"
+          roughness={0.3}
+        />
+      </mesh>
+      
+      {/* Teeth hint - lower */}
+      <mesh position={[0, -0.68, 0.7]}>
+        <boxGeometry args={[0.3, 0.06, 0.05]} />
+        <meshStandardMaterial 
+          color="#ffffff"
+          roughness={0.3}
+        />
       </mesh>
     </group>
   );
@@ -162,11 +291,12 @@ interface SkullSceneProps {
 const SkullScene = ({ onSelectRegion, hoveredRegion, onHoverRegion }: SkullSceneProps) => {
   return (
     <>
-      <ambientLight intensity={0.6} />
-      <directionalLight position={[5, 5, 5]} intensity={1} />
-      <pointLight position={[-5, -5, -5]} intensity={0.5} />
+      <ambientLight intensity={0.4} />
+      <directionalLight position={[5, 5, 5]} intensity={0.8} castShadow />
+      <directionalLight position={[-3, 3, 3]} intensity={0.4} />
+      <pointLight position={[0, -3, 3]} intensity={0.3} color="#fef3c7" />
       
-      <SkullBase />
+      <RealisticSkull />
       
       {headRegions.map((region) => (
         <SkullRegion
@@ -242,8 +372,8 @@ const SkullModel3D = ({ isOpen, onClose, onSelectLocation }: SkullModel3DProps) 
             </div>
 
             {/* 3D Canvas */}
-            <div className="h-80 bg-gradient-to-b from-background to-muted/30">
-              <Canvas camera={{ position: [0, 0, 4], fov: 45 }}>
+            <div className="h-80 bg-gradient-to-b from-slate-900/50 to-background">
+              <Canvas camera={{ position: [0, 0, 3.5], fov: 45 }}>
                 <SkullScene 
                   onSelectRegion={handleSelectRegion}
                   hoveredRegion={hoveredRegion}

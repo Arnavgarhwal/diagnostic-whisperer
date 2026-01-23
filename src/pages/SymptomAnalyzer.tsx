@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Bot, User, AlertTriangle, CheckCircle, Activity, RefreshCw } from "lucide-react";
+import { Send, Bot, User, AlertTriangle, CheckCircle, Activity, RefreshCw, Mic, MicOff, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +8,10 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { symptomResponses, commonSymptoms } from "@/data/symptoms";
 import SkullModel3D from "@/components/SkullModel3D";
+import HeartModel3D from "@/components/HeartModel3D";
+import AbdomenModel3D from "@/components/AbdomenModel3D";
 import { useFallDetection } from "@/hooks/useFallDetection";
+import { useVoiceInput } from "@/hooks/useVoiceInput";
 import FallDetectionOverlay from "@/components/FallDetectionOverlay";
 import { toast } from "@/hooks/use-toast";
 
@@ -38,7 +41,26 @@ const SymptomAnalyzer = () => {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [showSkullModel, setShowSkullModel] = useState(false);
+  const [showHeartModel, setShowHeartModel] = useState(false);
+  const [showAbdomenModel, setShowAbdomenModel] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Voice input hook
+  const { 
+    isListening, 
+    transcript, 
+    isSupported: voiceSupported, 
+    startListening, 
+    stopListening,
+    resetTranscript 
+  } = useVoiceInput();
+
+  // Update input when transcript changes
+  useEffect(() => {
+    if (transcript) {
+      setInput(transcript);
+    }
+  }, [transcript]);
 
   // Fall detection handler
   const handleFallSOS = useCallback((location: { lat: number; lng: number } | null) => {
@@ -56,6 +78,7 @@ const SymptomAnalyzer = () => {
     countdown,
     location,
     dismissFall,
+    triggerFallDetection,
     startMonitoring,
   } = useFallDetection(handleFallSOS);
 
@@ -95,6 +118,12 @@ const SymptomAnalyzer = () => {
     const textToSend = customInput || input;
     if (!textToSend.trim()) return;
 
+    // Stop listening if voice was active
+    if (isListening) {
+      stopListening();
+    }
+    resetTranscript();
+
     const userMessage: Message = {
       id: messages.length + 1,
       type: "user",
@@ -120,9 +149,15 @@ const SymptomAnalyzer = () => {
   };
 
   const handleQuickSymptom = (symptom: string) => {
-    // If headache is selected, show the 3D skull model
-    if (symptom.toLowerCase() === "headache") {
+    const lowerSymptom = symptom.toLowerCase();
+    
+    // Show 3D models for specific symptoms
+    if (lowerSymptom === "headache") {
       setShowSkullModel(true);
+    } else if (lowerSymptom === "chest pain") {
+      setShowHeartModel(true);
+    } else if (lowerSymptom === "stomach pain" || lowerSymptom === "abdominal pain" || lowerSymptom === "nausea") {
+      setShowAbdomenModel(true);
     } else {
       setInput(`I'm experiencing ${symptom.toLowerCase()}`);
     }
@@ -133,12 +168,41 @@ const SymptomAnalyzer = () => {
     handleSend(message);
   };
 
+  const handleHeartLocationSelect = (location: string, description: string) => {
+    const message = `I'm experiencing chest pain in the ${location.toLowerCase()}. ${description}`;
+    handleSend(message);
+  };
+
+  const handleAbdomenLocationSelect = (location: string, description: string) => {
+    const message = `I'm experiencing stomach/abdominal pain in the ${location.toLowerCase()}. ${description}`;
+    handleSend(message);
+  };
+
+  const handleVoiceToggle = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
+    }
+  };
+
   const handleReset = () => {
     setMessages([{
       id: 1,
       type: "bot",
       content: "Hello! I'm your AI Health Assistant. Please describe your symptoms in detail, and I'll help analyze them. Remember, this is for informational purposes only and not a substitute for professional medical advice."
     }]);
+    resetTranscript();
+    setInput("");
+  };
+
+  // Test fall detection manually (for desktop testing)
+  const handleTestFallDetection = () => {
+    toast({
+      title: "Testing Fall Detection",
+      description: "Simulating a fall event...",
+    });
+    triggerFallDetection();
   };
 
   return (
@@ -163,6 +227,17 @@ const SymptomAnalyzer = () => {
             <p className="text-muted-foreground">
               Describe your symptoms for an AI-powered preliminary assessment
             </p>
+            
+            {/* Fall Detection Test Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleTestFallDetection}
+              className="mt-3 text-xs border-destructive/50 text-destructive hover:bg-destructive/10"
+            >
+              <AlertCircle className="w-3 h-3 mr-1" />
+              Test Fall Detection
+            </Button>
           </motion.div>
 
           {/* Quick Symptoms */}
@@ -286,14 +361,35 @@ const SymptomAnalyzer = () => {
 
             {/* Input */}
             <div className="p-4 border-t border-border">
+              {/* Voice indicator */}
+              {isListening && (
+                <div className="flex items-center justify-center gap-2 mb-3 text-sm text-primary animate-pulse">
+                  <div className="w-2 h-2 bg-red-500 rounded-full animate-ping" />
+                  Listening... Speak your symptoms
+                </div>
+              )}
+              
               <div className="flex gap-2">
                 <Button variant="outline" size="icon" onClick={handleReset}>
                   <RefreshCw className="w-4 h-4" />
                 </Button>
+                
+                {/* Voice Input Button */}
+                {voiceSupported && (
+                  <Button 
+                    variant={isListening ? "destructive" : "outline"} 
+                    size="icon" 
+                    onClick={handleVoiceToggle}
+                    title={isListening ? "Stop listening" : "Start voice input"}
+                  >
+                    {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                  </Button>
+                )}
+                
                 <Input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder="Describe your symptoms..."
+                  placeholder={isListening ? "Listening..." : "Describe your symptoms..."}
                   className="flex-1"
                   onKeyDown={(e) => e.key === "Enter" && handleSend()}
                 />
@@ -311,11 +407,23 @@ const SymptomAnalyzer = () => {
 
       <Footer />
 
-      {/* 3D Skull Model for Headache */}
+      {/* 3D Models for different symptoms */}
       <SkullModel3D 
         isOpen={showSkullModel}
         onClose={() => setShowSkullModel(false)}
         onSelectLocation={handleSkullLocationSelect}
+      />
+      
+      <HeartModel3D
+        isOpen={showHeartModel}
+        onClose={() => setShowHeartModel(false)}
+        onSelectLocation={handleHeartLocationSelect}
+      />
+      
+      <AbdomenModel3D
+        isOpen={showAbdomenModel}
+        onClose={() => setShowAbdomenModel(false)}
+        onSelectLocation={handleAbdomenLocationSelect}
       />
 
       {/* Fall Detection Overlay */}
