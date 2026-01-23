@@ -2,41 +2,63 @@ import { useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import useFallDetection from "@/hooks/useFallDetection";
 import FallDetectionOverlay from "./FallDetectionOverlay";
+import { useEmergencySettings, EmergencyContact } from "@/hooks/useEmergencySettings";
 
-const EMERGENCY_CONTACT = "9004682830";
-const EMERGENCY_NAME = "Family Member";
+const sendEmergencyAlerts = (
+  contacts: EmergencyContact[],
+  location: { lat: number; lng: number } | null
+) => {
+  const locationText = location 
+    ? `Location: https://maps.google.com/?q=${location.lat},${location.lng}`
+    : "Location unavailable";
+  
+  const message = `🚨 EMERGENCY ALERT!\n\nFall detected! Immediate assistance may be required.\n\n${locationText}\n\nThis is an automated emergency message from the Health App.`;
+  const encodedMessage = encodeURIComponent(message);
+
+  contacts.forEach((contact, index) => {
+    const phone = contact.phone.replace(/\D/g, ''); // Remove non-digits
+    
+    // Small delay between opening multiple links
+    setTimeout(() => {
+      if (contact.preferredMethod === 'sms' || contact.preferredMethod === 'both') {
+        // Open SMS
+        const smsLink = document.createElement('a');
+        smsLink.href = `sms:${phone}?body=${encodedMessage}`;
+        smsLink.style.display = 'none';
+        document.body.appendChild(smsLink);
+        smsLink.click();
+        document.body.removeChild(smsLink);
+      }
+      
+      if (contact.preferredMethod === 'whatsapp' || contact.preferredMethod === 'both') {
+        // Open WhatsApp - add small delay if SMS was also sent
+        setTimeout(() => {
+          const waLink = document.createElement('a');
+          waLink.href = `https://wa.me/${phone}?text=${encodedMessage}`;
+          waLink.target = '_blank';
+          waLink.style.display = 'none';
+          document.body.appendChild(waLink);
+          waLink.click();
+          document.body.removeChild(waLink);
+        }, contact.preferredMethod === 'both' ? 500 : 0);
+      }
+    }, index * 1000); // Stagger alerts to different contacts
+  });
+
+  toast.error("Emergency Alerts Sent!", {
+    description: `Sending to ${contacts.length} emergency contact(s)`,
+    duration: 10000,
+  });
+};
 
 const GlobalFallDetection = () => {
-  const sendEmergencySMS = useCallback((location: { lat: number; lng: number } | null) => {
-    const locationText = location 
-      ? `Location: https://maps.google.com/?q=${location.lat},${location.lng}`
-      : "Location unavailable";
-    
-    const message = encodeURIComponent(
-      `🚨 EMERGENCY ALERT!\n\nFall detected! Immediate assistance may be required.\n\n${locationText}\n\nThis is an automated emergency message from the Health App.`
-    );
-    
-    // Open native SMS app with pre-filled message
-    const smsUri = `sms:${EMERGENCY_CONTACT}?body=${message}`;
-    
-    // Create a hidden link and click it to trigger SMS
-    const link = document.createElement('a');
-    link.href = smsUri;
-    link.style.display = 'none';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    // Also try to call emergency services
-    setTimeout(() => {
-      window.location.href = 'tel:112';
-    }, 1000);
-    
-    toast.error("Emergency SOS Triggered!", {
-      description: `Opening SMS to ${EMERGENCY_NAME} (${EMERGENCY_CONTACT})`,
-      duration: 10000,
-    });
-  }, []);
+  const { settings, isLoaded } = useEmergencySettings();
+
+  const handleSOSTrigger = useCallback((location: { lat: number; lng: number } | null) => {
+    if (settings.autoSend && settings.contacts.length > 0) {
+      sendEmergencyAlerts(settings.contacts, location);
+    }
+  }, [settings]);
 
   const {
     isFallDetected,
@@ -44,17 +66,21 @@ const GlobalFallDetection = () => {
     location,
     dismissFall,
     startMonitoring,
-  } = useFallDetection(sendEmergencySMS);
+  } = useFallDetection(handleSOSTrigger);
 
   // Start monitoring on mount
   useEffect(() => {
-    startMonitoring();
-    
-    toast.success("Fall Detection Active", {
-      description: "Monitoring for falls. Emergency contact will be notified if a fall is detected.",
-      duration: 3000,
-    });
-  }, [startMonitoring]);
+    if (isLoaded) {
+      startMonitoring();
+      
+      toast.success("Fall Detection Active", {
+        description: `Monitoring for falls. ${settings.contacts.length} emergency contact(s) configured.`,
+        duration: 3000,
+      });
+    }
+  }, [isLoaded, startMonitoring, settings.contacts.length]);
+
+  if (!isLoaded) return null;
 
   return (
     <FallDetectionOverlay
@@ -62,8 +88,8 @@ const GlobalFallDetection = () => {
       countdown={countdown}
       location={location}
       onDismiss={dismissFall}
-      emergencyContact={EMERGENCY_CONTACT}
-      emergencyName={EMERGENCY_NAME}
+      contacts={settings.contacts}
+      onManualAlert={() => sendEmergencyAlerts(settings.contacts, location)}
     />
   );
 };

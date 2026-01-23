@@ -1,14 +1,16 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertTriangle, X, Phone, MapPin, MessageSquare, User } from "lucide-react";
+import { AlertTriangle, X, Phone, MapPin, MessageSquare, Users, Settings } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { EmergencyContact } from "@/hooks/useEmergencySettings";
 
 interface FallDetectionOverlayProps {
   isVisible: boolean;
   countdown: number;
   location: { lat: number; lng: number } | null;
   onDismiss: () => void;
-  emergencyContact?: string;
-  emergencyName?: string;
+  contacts: EmergencyContact[];
+  onManualAlert: () => void;
 }
 
 const FallDetectionOverlay = ({
@@ -16,19 +18,16 @@ const FallDetectionOverlay = ({
   countdown,
   location,
   onDismiss,
-  emergencyContact = "112",
-  emergencyName = "Emergency Services",
+  contacts,
+  onManualAlert,
 }: FallDetectionOverlayProps) => {
-  const sendSMSNow = () => {
-    const locationText = location 
-      ? `Location: https://maps.google.com/?q=${location.lat},${location.lng}`
-      : "Location unavailable";
-    
-    const message = encodeURIComponent(
-      `🚨 EMERGENCY ALERT!\n\nFall detected! Immediate assistance may be required.\n\n${locationText}\n\nThis is an automated emergency message from the Health App.`
-    );
-    
-    window.location.href = `sms:${emergencyContact}?body=${message}`;
+  const getMethodLabel = (method: string) => {
+    switch (method) {
+      case 'sms': return 'SMS';
+      case 'whatsapp': return 'WhatsApp';
+      case 'both': return 'SMS & WhatsApp';
+      default: return method;
+    }
   };
 
   return (
@@ -44,95 +43,119 @@ const FallDetectionOverlay = ({
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.8, opacity: 0 }}
-            className="bg-card border-2 border-destructive rounded-2xl p-8 max-w-md w-full text-center"
+            className="bg-card border-2 border-destructive rounded-2xl p-6 max-w-md w-full text-center max-h-[90vh] overflow-y-auto"
           >
             {/* Warning Icon */}
             <motion.div
               animate={{ scale: [1, 1.1, 1] }}
               transition={{ repeat: Infinity, duration: 0.5 }}
-              className="w-24 h-24 mx-auto mb-6 rounded-full bg-destructive/20 flex items-center justify-center"
+              className="w-20 h-20 mx-auto mb-4 rounded-full bg-destructive/20 flex items-center justify-center"
             >
-              <AlertTriangle className="w-12 h-12 text-destructive" />
+              <AlertTriangle className="w-10 h-10 text-destructive" />
             </motion.div>
 
             {/* Title */}
             <h2 className="text-2xl font-bold text-foreground mb-2">
               Fall Detected!
             </h2>
-            <p className="text-muted-foreground mb-4">
-              We detected a sudden fall. Emergency SMS will be sent automatically.
+            <p className="text-muted-foreground mb-4 text-sm">
+              Emergency alerts will be sent automatically when countdown ends.
             </p>
-
-            {/* Emergency Contact Info */}
-            <div className="flex items-center justify-center gap-2 text-sm bg-destructive/10 rounded-lg p-3 mb-4">
-              <User className="w-4 h-4 text-destructive" />
-              <span className="text-foreground font-medium">
-                Emergency Contact: {emergencyName}
-              </span>
-              <span className="text-muted-foreground">({emergencyContact})</span>
-            </div>
 
             {/* Countdown */}
             <motion.div
               key={countdown}
               initial={{ scale: 1.2 }}
               animate={{ scale: 1 }}
-              className="w-32 h-32 mx-auto mb-4 rounded-full bg-destructive flex items-center justify-center"
+              className="w-28 h-28 mx-auto mb-4 rounded-full bg-destructive flex items-center justify-center"
             >
-              <span className="text-5xl font-bold text-white">{countdown}</span>
+              <span className="text-4xl font-bold text-white">{countdown}</span>
             </motion.div>
 
-            <p className="text-sm text-muted-foreground mb-4">
-              seconds until emergency SMS is sent
+            <p className="text-xs text-muted-foreground mb-4">
+              seconds until emergency alerts are sent
             </p>
+
+            {/* Emergency Contacts Preview */}
+            <div className="bg-muted/50 rounded-lg p-3 mb-4">
+              <div className="flex items-center justify-center gap-2 text-sm font-medium text-foreground mb-2">
+                <Users className="w-4 h-4" />
+                <span>Alerting {contacts.length} Contact{contacts.length !== 1 ? 's' : ''}</span>
+              </div>
+              <div className="space-y-1">
+                {contacts.slice(0, 3).map((contact, index) => (
+                  <div key={index} className="text-xs text-muted-foreground flex items-center justify-center gap-2">
+                    <span className="font-medium">{contact.name}</span>
+                    <span>({contact.phone})</span>
+                    <span className="text-primary">via {getMethodLabel(contact.preferredMethod)}</span>
+                  </div>
+                ))}
+                {contacts.length > 3 && (
+                  <div className="text-xs text-muted-foreground">
+                    +{contacts.length - 3} more
+                  </div>
+                )}
+              </div>
+            </div>
 
             {/* Location Info */}
             {location && (
-              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground mb-6 bg-muted/50 rounded-lg p-3">
-                <MapPin className="w-4 h-4" />
+              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground mb-4 bg-muted/30 rounded-lg p-2">
+                <MapPin className="w-3 h-3" />
                 <span>
-                  Location: {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
+                  {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
                 </span>
               </div>
             )}
 
             {/* Action Buttons */}
-            <div className="space-y-3">
+            <div className="space-y-2">
               <Button
                 onClick={onDismiss}
                 variant="outline"
                 size="lg"
-                className="w-full h-14 text-lg border-2"
+                className="w-full h-12 text-base border-2"
               >
-                <X className="w-5 h-5 mr-2" />
+                <X className="w-4 h-4 mr-2" />
                 I'm OK - Cancel Alert
               </Button>
               
               <Button
-                onClick={sendSMSNow}
+                onClick={onManualAlert}
                 variant="default"
                 size="lg"
-                className="w-full h-14 text-lg bg-primary"
+                className="w-full h-12 text-base bg-primary"
               >
-                <MessageSquare className="w-5 h-5 mr-2" />
-                Send SMS Now
+                <MessageSquare className="w-4 h-4 mr-2" />
+                Send Alerts Now
               </Button>
               
               <Button
                 variant="destructive"
                 size="lg"
-                className="w-full h-14 text-lg"
+                className="w-full h-12 text-base"
                 onClick={() => {
                   window.location.href = 'tel:112';
                 }}
               >
-                <Phone className="w-5 h-5 mr-2" />
+                <Phone className="w-4 h-4 mr-2" />
                 Call Emergency (112)
               </Button>
+
+              <Link to="/emergency-settings" onClick={onDismiss}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full mt-2"
+                >
+                  <Settings className="w-3 h-3 mr-2" />
+                  Configure Contacts
+                </Button>
+              </Link>
             </div>
 
-            <p className="text-xs text-muted-foreground mt-4">
-              Your location will be shared with your emergency contact
+            <p className="text-xs text-muted-foreground mt-3">
+              Location will be shared with emergency contacts
             </p>
           </motion.div>
         </motion.div>
