@@ -10,9 +10,7 @@ import { symptomResponses, commonSymptoms } from "@/data/symptoms";
 import SkullModel3D from "@/components/SkullModel3D";
 import HeartModel3D from "@/components/HeartModel3D";
 import AbdomenModel3D from "@/components/AbdomenModel3D";
-import { useFallDetection } from "@/hooks/useFallDetection";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
-import FallDetectionOverlay from "@/components/FallDetectionOverlay";
 import { toast } from "@/hooks/use-toast";
 
 interface Message {
@@ -62,30 +60,6 @@ const SymptomAnalyzer = () => {
     }
   }, [transcript]);
 
-  // Fall detection handler
-  const handleFallSOS = useCallback((location: { lat: number; lng: number } | null) => {
-    toast({
-      title: "Emergency SOS Triggered",
-      description: location 
-        ? `Emergency services notified. Location: ${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`
-        : "Emergency services notified. Location unavailable.",
-      variant: "destructive",
-    });
-  }, []);
-
-  const {
-    isFallDetected,
-    countdown,
-    location,
-    dismissFall,
-    triggerFallDetection,
-    startMonitoring,
-  } = useFallDetection(handleFallSOS);
-
-  // Start fall detection monitoring when component mounts
-  useEffect(() => {
-    startMonitoring();
-  }, [startMonitoring]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -196,14 +170,6 @@ const SymptomAnalyzer = () => {
     setInput("");
   };
 
-  // Test fall detection manually (for desktop testing)
-  const handleTestFallDetection = () => {
-    toast({
-      title: "Testing Fall Detection",
-      description: "Simulating a fall event...",
-    });
-    triggerFallDetection();
-  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -228,16 +194,6 @@ const SymptomAnalyzer = () => {
               Describe your symptoms for an AI-powered preliminary assessment
             </p>
             
-            {/* Fall Detection Test Button */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleTestFallDetection}
-              className="mt-3 text-xs border-destructive/50 text-destructive hover:bg-destructive/10"
-            >
-              <AlertCircle className="w-3 h-3 mr-1" />
-              Test Fall Detection
-            </Button>
           </motion.div>
 
           {/* Quick Symptoms */}
@@ -426,13 +382,6 @@ const SymptomAnalyzer = () => {
         onSelectLocation={handleAbdomenLocationSelect}
       />
 
-      {/* Fall Detection Overlay */}
-      <FallDetectionOverlay
-        isVisible={isFallDetected}
-        countdown={countdown}
-        location={location}
-        onDismiss={dismissFall}
-      />
     </div>
   );
 };

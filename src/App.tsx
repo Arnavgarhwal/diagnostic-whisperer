@@ -18,6 +18,7 @@ import ProfileSettings from "./pages/ProfileSettings";
 import VitalsTracker from "./pages/VitalsTracker";
 import FamilyHealth from "./pages/FamilyHealth";
 import EmergencySOS from "./pages/EmergencySOS";
+import EmergencySettings from "./pages/EmergencySettings";
 import MedicineReminder from "./pages/MedicineReminder";
 import BMICalculator from "./pages/BMICalculator";
 import NearbyHospitals from "./pages/NearbyHospitals";
@@ -31,8 +32,8 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <GlobalFallDetection />
       <BrowserRouter>
+        <GlobalFallDetection />
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/diseases" element={<DiseaseLibrary />} />
@@ -48,6 +49,7 @@ const App = () => (
           <Route path="/vitals" element={<VitalsTracker />} />
           <Route path="/family" element={<FamilyHealth />} />
           <Route path="/emergency" element={<EmergencySOS />} />
+          <Route path="/emergency-settings" element={<EmergencySettings />} />
           <Route path="/medicine-reminders" element={<MedicineReminder />} />
           <Route path="/bmi-calculator" element={<BMICalculator />} />
           <Route path="/nearby-hospitals" element={<NearbyHospitals />} />
