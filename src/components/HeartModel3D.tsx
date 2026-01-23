@@ -18,51 +18,83 @@ interface ChestRegion {
 const chestRegions: ChestRegion[] = [
   {
     id: "center-chest",
-    name: "Center Chest",
-    position: [0, 0.3, 0.8],
+    name: "Central Chest (Sternum)",
+    position: [0, 0.2, 1.1],
     color: "#ef4444",
     hoverColor: "#dc2626",
-    description: "Central chest area, behind the breastbone"
+    description: "Behind the breastbone - most common angina location"
   },
   {
     id: "left-chest",
-    name: "Left Chest",
-    position: [-0.6, 0.2, 0.6],
+    name: "Left Chest (Heart Area)",
+    position: [-0.5, 0.1, 1.0],
     color: "#f97316",
     hoverColor: "#ea580c",
-    description: "Left side of chest, near the heart"
+    description: "Left side near the heart - cardiac-related pain"
   },
   {
     id: "right-chest",
     name: "Right Chest",
-    position: [0.6, 0.2, 0.6],
+    position: [0.5, 0.1, 1.0],
     color: "#eab308",
     hoverColor: "#ca8a04",
-    description: "Right side of chest"
+    description: "Right side of chest - may indicate lung or muscle issues"
   },
   {
     id: "upper-chest",
     name: "Upper Chest",
-    position: [0, 0.8, 0.5],
+    position: [0, 0.7, 0.9],
     color: "#22c55e",
     hoverColor: "#16a34a",
-    description: "Upper chest area, near the collarbone"
+    description: "Upper chest near collarbone - may radiate to neck"
   },
   {
     id: "lower-chest",
     name: "Lower Chest",
-    position: [0, -0.3, 0.7],
+    position: [0, -0.4, 1.0],
     color: "#3b82f6",
     hoverColor: "#2563eb",
-    description: "Lower chest area, above the stomach"
+    description: "Lower chest area - may be digestive or cardiac"
   },
   {
-    id: "whole-chest",
-    name: "Entire Chest",
-    position: [0, -0.8, 0],
+    id: "left-shoulder",
+    name: "Left Shoulder/Arm",
+    position: [-1.1, 0.3, 0.5],
     color: "#8b5cf6",
     hoverColor: "#7c3aed",
-    description: "Pain affecting the whole chest area"
+    description: "Radiating to left arm - classic heart attack symptom"
+  },
+  {
+    id: "right-shoulder",
+    name: "Right Shoulder/Arm",
+    position: [1.1, 0.3, 0.5],
+    color: "#06b6d4",
+    hoverColor: "#0891b2",
+    description: "Radiating to right arm - less common cardiac presentation"
+  },
+  {
+    id: "back-chest",
+    name: "Back (Behind Heart)",
+    position: [0, 0.1, -0.8],
+    color: "#ec4899",
+    hoverColor: "#db2777",
+    description: "Pain radiating to back - may indicate aortic issues"
+  },
+  {
+    id: "left-ribs",
+    name: "Left Rib Area",
+    position: [-0.8, -0.2, 0.7],
+    color: "#14b8a6",
+    hoverColor: "#0d9488",
+    description: "Left side ribs - may be muscular or cardiac"
+  },
+  {
+    id: "right-ribs",
+    name: "Right Rib Area",
+    position: [0.8, -0.2, 0.7],
+    color: "#f59e0b",
+    hoverColor: "#d97706",
+    description: "Right side ribs - often muscular or respiratory"
   }
 ];
 
@@ -78,8 +110,8 @@ const ChestRegionMarker = ({ region, onSelect, isHovered, onHover }: ChestRegion
   
   useFrame(() => {
     if (meshRef.current) {
-      const targetScale = isHovered ? 1.3 : 1;
-      meshRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
+      const targetScale = isHovered ? 1.4 : 1;
+      meshRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.12);
     }
   });
 
@@ -91,98 +123,156 @@ const ChestRegionMarker = ({ region, onSelect, isHovered, onHover }: ChestRegion
       onPointerOver={() => onHover(region.id)}
       onPointerOut={() => onHover(null)}
     >
-      <sphereGeometry args={[0.15, 32, 32]} />
+      <sphereGeometry args={[0.1, 24, 24]} />
       <meshStandardMaterial 
         color={isHovered ? region.hoverColor : region.color} 
         emissive={isHovered ? region.hoverColor : region.color}
-        emissiveIntensity={isHovered ? 0.4 : 0.15}
+        emissiveIntensity={isHovered ? 0.5 : 0.2}
+        transparent
+        opacity={0.9}
       />
     </mesh>
   );
 };
 
-const HeartOrgan = () => {
+const AnatomicalHeart = () => {
   const heartRef = useRef<THREE.Group>(null);
+  
+  const heartRed = "#8b1538";
+  const heartDark = "#6b0f2a";
+  const heartLight = "#a82040";
+  const veinBlue = "#2d4a8c";
+  const arteryRed = "#c41e3a";
   
   useFrame((state) => {
     if (heartRef.current) {
-      // Gentle heartbeat animation
-      const beat = Math.sin(state.clock.elapsedTime * 2.5) * 0.03 + 1;
+      // Heartbeat animation
+      const beat = Math.sin(state.clock.elapsedTime * 2.8) * 0.04 + 1;
       heartRef.current.scale.setScalar(beat);
-      heartRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.3) * 0.1;
+      heartRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.2) * 0.08;
     }
   });
 
   return (
-    <group ref={heartRef}>
-      {/* Main heart body - left ventricle */}
-      <mesh position={[-0.15, -0.1, 0]}>
-        <sphereGeometry args={[0.5, 32, 32]} />
-        <meshStandardMaterial 
-          color="#b91c1c"
-          roughness={0.4}
-          metalness={0.1}
-        />
+    <group ref={heartRef} position={[0, -0.1, 0]}>
+      {/* ===== LEFT VENTRICLE ===== */}
+      <mesh position={[-0.15, -0.2, 0.1]}>
+        <sphereGeometry args={[0.55, 32, 32]} />
+        <meshStandardMaterial color={heartRed} roughness={0.45} />
       </mesh>
       
-      {/* Right ventricle */}
-      <mesh position={[0.2, -0.05, 0.1]}>
-        <sphereGeometry args={[0.4, 32, 32]} />
-        <meshStandardMaterial 
-          color="#991b1b"
-          roughness={0.4}
-          metalness={0.1}
-        />
+      {/* Left ventricle apex */}
+      <mesh position={[-0.1, -0.65, 0.15]} rotation={[0.2, 0, 0.15]}>
+        <coneGeometry args={[0.35, 0.5, 24]} />
+        <meshStandardMaterial color={heartDark} roughness={0.5} />
       </mesh>
       
-      {/* Left atrium */}
-      <mesh position={[-0.2, 0.4, -0.1]}>
-        <sphereGeometry args={[0.3, 32, 32]} />
-        <meshStandardMaterial 
-          color="#dc2626"
-          roughness={0.4}
-          metalness={0.1}
-        />
+      {/* ===== RIGHT VENTRICLE ===== */}
+      <mesh position={[0.25, -0.15, 0.2]}>
+        <sphereGeometry args={[0.45, 32, 32]} />
+        <meshStandardMaterial color={heartLight} roughness={0.45} />
       </mesh>
       
-      {/* Right atrium */}
-      <mesh position={[0.25, 0.35, 0]}>
-        <sphereGeometry args={[0.28, 32, 32]} />
-        <meshStandardMaterial 
-          color="#ef4444"
-          roughness={0.4}
-          metalness={0.1}
-        />
+      {/* ===== LEFT ATRIUM ===== */}
+      <mesh position={[-0.2, 0.35, -0.15]}>
+        <sphereGeometry args={[0.35, 32, 32]} />
+        <meshStandardMaterial color={heartRed} roughness={0.4} />
       </mesh>
       
-      {/* Aorta */}
-      <mesh position={[0, 0.7, 0]} rotation={[0, 0, -0.2]}>
-        <cylinderGeometry args={[0.12, 0.15, 0.5, 16]} />
-        <meshStandardMaterial 
-          color="#dc2626"
-          roughness={0.3}
-          metalness={0.1}
-        />
+      {/* Left atrial appendage */}
+      <mesh position={[-0.45, 0.4, 0.05]} rotation={[0, 0, 0.5]}>
+        <capsuleGeometry args={[0.1, 0.18, 8, 16]} />
+        <meshStandardMaterial color={heartDark} roughness={0.45} />
       </mesh>
       
-      {/* Pulmonary artery */}
-      <mesh position={[0.15, 0.65, 0.1]} rotation={[0.3, 0, 0.3]}>
+      {/* ===== RIGHT ATRIUM ===== */}
+      <mesh position={[0.3, 0.3, 0.05]}>
+        <sphereGeometry args={[0.32, 32, 32]} />
+        <meshStandardMaterial color={heartLight} roughness={0.4} />
+      </mesh>
+      
+      {/* Right atrial appendage */}
+      <mesh position={[0.55, 0.35, 0.15]} rotation={[0, 0, -0.4]}>
+        <capsuleGeometry args={[0.08, 0.15, 8, 16]} />
+        <meshStandardMaterial color={heartLight} roughness={0.45} />
+      </mesh>
+      
+      {/* ===== AORTA ===== */}
+      <mesh position={[0, 0.6, 0]} rotation={[0.15, 0, 0]}>
+        <cylinderGeometry args={[0.14, 0.18, 0.35, 24]} />
+        <meshStandardMaterial color={arteryRed} roughness={0.35} />
+      </mesh>
+      
+      {/* Aortic arch */}
+      <mesh position={[0, 0.85, -0.15]} rotation={[1.2, 0, 0]}>
+        <torusGeometry args={[0.2, 0.1, 16, 24, Math.PI]} />
+        <meshStandardMaterial color={arteryRed} roughness={0.35} />
+      </mesh>
+      
+      {/* Descending aorta */}
+      <mesh position={[0, 0.65, -0.4]} rotation={[0.1, 0, 0]}>
         <cylinderGeometry args={[0.08, 0.1, 0.4, 16]} />
-        <meshStandardMaterial 
-          color="#3b82f6"
-          roughness={0.3}
-          metalness={0.1}
-        />
+        <meshStandardMaterial color={arteryRed} roughness={0.4} />
       </mesh>
       
-      {/* Veins */}
-      <mesh position={[-0.3, 0.5, -0.15]} rotation={[0.2, 0, -0.3]}>
-        <cylinderGeometry args={[0.06, 0.08, 0.3, 16]} />
-        <meshStandardMaterial 
-          color="#1d4ed8"
-          roughness={0.3}
-          metalness={0.1}
-        />
+      {/* ===== PULMONARY ARTERY ===== */}
+      <mesh position={[0.15, 0.55, 0.15]} rotation={[-0.2, 0, 0.25]}>
+        <cylinderGeometry args={[0.1, 0.12, 0.3, 16]} />
+        <meshStandardMaterial color={veinBlue} roughness={0.4} />
+      </mesh>
+      
+      {/* Pulmonary trunk split */}
+      <mesh position={[-0.1, 0.7, 0.1]} rotation={[0.2, 0, 0.6]}>
+        <cylinderGeometry args={[0.06, 0.08, 0.25, 12]} />
+        <meshStandardMaterial color={veinBlue} roughness={0.4} />
+      </mesh>
+      
+      <mesh position={[0.25, 0.7, 0.12]} rotation={[0.2, 0, -0.5]}>
+        <cylinderGeometry args={[0.06, 0.08, 0.22, 12]} />
+        <meshStandardMaterial color={veinBlue} roughness={0.4} />
+      </mesh>
+      
+      {/* ===== SUPERIOR VENA CAVA ===== */}
+      <mesh position={[0.35, 0.6, -0.1]} rotation={[0.15, 0, -0.1]}>
+        <cylinderGeometry args={[0.08, 0.1, 0.35, 16]} />
+        <meshStandardMaterial color={veinBlue} roughness={0.45} />
+      </mesh>
+      
+      {/* ===== INFERIOR VENA CAVA ===== */}
+      <mesh position={[0.25, -0.45, -0.1]} rotation={[0.1, 0, 0.05]}>
+        <cylinderGeometry args={[0.1, 0.08, 0.3, 16]} />
+        <meshStandardMaterial color={veinBlue} roughness={0.45} />
+      </mesh>
+      
+      {/* ===== PULMONARY VEINS ===== */}
+      <mesh position={[-0.4, 0.45, -0.25]} rotation={[0.3, 0.4, 0]}>
+        <cylinderGeometry args={[0.04, 0.05, 0.2, 12]} />
+        <meshStandardMaterial color={arteryRed} roughness={0.4} />
+      </mesh>
+      
+      <mesh position={[-0.35, 0.3, -0.3]} rotation={[0.5, 0.3, 0]}>
+        <cylinderGeometry args={[0.04, 0.05, 0.18, 12]} />
+        <meshStandardMaterial color={arteryRed} roughness={0.4} />
+      </mesh>
+      
+      {/* ===== CORONARY ARTERIES ===== */}
+      {/* Left coronary */}
+      <mesh position={[-0.3, 0.1, 0.35]} rotation={[0.5, 0.8, 0.3]}>
+        <torusGeometry args={[0.25, 0.025, 8, 24, Math.PI * 0.8]} />
+        <meshStandardMaterial color="#ff6b6b" roughness={0.3} emissive="#ff6b6b" emissiveIntensity={0.1} />
+      </mesh>
+      
+      {/* Right coronary */}
+      <mesh position={[0.35, 0.05, 0.3]} rotation={[0.6, -0.6, -0.2]}>
+        <torusGeometry args={[0.22, 0.022, 8, 24, Math.PI * 0.7]} />
+        <meshStandardMaterial color="#ff6b6b" roughness={0.3} emissive="#ff6b6b" emissiveIntensity={0.1} />
+      </mesh>
+      
+      {/* ===== SURFACE DETAILS ===== */}
+      {/* Interventricular groove */}
+      <mesh position={[0.05, -0.25, 0.45]} rotation={[0.15, 0, 0.1]}>
+        <cylinderGeometry args={[0.02, 0.02, 0.6, 8]} />
+        <meshStandardMaterial color={heartDark} roughness={0.5} />
       </mesh>
     </group>
   );
@@ -197,12 +287,13 @@ interface HeartSceneProps {
 const HeartScene = ({ onSelectRegion, hoveredRegion, onHoverRegion }: HeartSceneProps) => {
   return (
     <>
-      <ambientLight intensity={0.5} />
-      <directionalLight position={[5, 5, 5]} intensity={1} castShadow />
-      <pointLight position={[-5, -5, -5]} intensity={0.3} color="#ff6b6b" />
-      <pointLight position={[0, 3, 3]} intensity={0.4} color="#ffffff" />
+      <ambientLight intensity={0.4} />
+      <directionalLight position={[4, 4, 5]} intensity={0.85} castShadow />
+      <directionalLight position={[-3, 2, 3]} intensity={0.35} />
+      <pointLight position={[0, -2, 4]} intensity={0.3} color="#ffcccc" />
+      <pointLight position={[0, 2, -2]} intensity={0.2} color="#ccccff" />
       
-      <HeartOrgan />
+      <AnatomicalHeart />
       
       {chestRegions.map((region) => (
         <ChestRegionMarker
@@ -215,10 +306,12 @@ const HeartScene = ({ onSelectRegion, hoveredRegion, onHoverRegion }: HeartScene
       ))}
       
       <OrbitControls 
-        enableZoom={false} 
+        enableZoom={true}
+        minDistance={2}
+        maxDistance={5}
         enablePan={false}
-        minPolarAngle={Math.PI / 4}
-        maxPolarAngle={Math.PI / 1.5}
+        minPolarAngle={Math.PI / 6}
+        maxPolarAngle={Math.PI / 1.3}
       />
     </>
   );
@@ -255,7 +348,7 @@ const HeartModel3D = ({ isOpen, onClose, onSelectLocation }: HeartModel3DProps) 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={(e) => {
             if (e.target === e.currentTarget) onClose();
           }}
@@ -264,13 +357,13 @@ const HeartModel3D = ({ isOpen, onClose, onSelectLocation }: HeartModel3DProps) 
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
-            className="bg-card border border-border rounded-2xl w-full max-w-2xl overflow-hidden"
+            className="bg-card border border-border rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl"
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-border">
+            <div className="flex items-center justify-between p-4 border-b border-border bg-gradient-to-r from-red-500/10 to-transparent">
               <div className="flex items-center gap-2">
                 <Heart className="w-5 h-5 text-red-500" />
-                <h2 className="text-lg font-semibold">Where is your chest pain?</h2>
+                <h2 className="text-lg font-semibold">Select Chest Pain Location</h2>
               </div>
               <Button variant="ghost" size="icon" onClick={onClose}>
                 <X className="w-5 h-5" />
@@ -278,8 +371,8 @@ const HeartModel3D = ({ isOpen, onClose, onSelectLocation }: HeartModel3DProps) 
             </div>
 
             {/* 3D Canvas */}
-            <div className="h-80 bg-gradient-to-b from-red-950/20 to-background">
-              <Canvas camera={{ position: [0, 0, 3], fov: 45 }}>
+            <div className="h-[400px] bg-gradient-to-b from-red-950/30 to-slate-900">
+              <Canvas camera={{ position: [0, 0, 3.2], fov: 42 }}>
                 <HeartScene 
                   onSelectRegion={handleSelectRegion}
                   hoveredRegion={hoveredRegion}
@@ -289,19 +382,27 @@ const HeartModel3D = ({ isOpen, onClose, onSelectLocation }: HeartModel3DProps) 
             </div>
 
             {/* Region Info */}
-            <div className="p-4 border-t border-border bg-muted/30">
+            <div className="p-4 border-t border-border bg-muted/30 min-h-[80px]">
               {hoveredInfo && !selectedRegion ? (
                 <div className="text-center animate-fade-in">
-                  <p className="font-medium text-foreground">{hoveredInfo.name}</p>
+                  <div className="flex items-center justify-center gap-2 mb-1">
+                    <span 
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: hoveredInfo.color }}
+                    />
+                    <p className="font-medium text-foreground">{hoveredInfo.name}</p>
+                  </div>
                   <p className="text-sm text-muted-foreground">{hoveredInfo.description}</p>
                 </div>
               ) : selectedRegion ? (
                 <div className="text-center animate-fade-in">
-                  <div 
-                    className="inline-block w-4 h-4 rounded-full mb-2"
-                    style={{ backgroundColor: selectedRegion.color }}
-                  />
-                  <p className="font-medium text-foreground">Selected: {selectedRegion.name}</p>
+                  <div className="flex items-center justify-center gap-2 mb-1">
+                    <span 
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: selectedRegion.color }}
+                    />
+                    <p className="font-medium text-foreground">Selected: {selectedRegion.name}</p>
+                  </div>
                   <p className="text-sm text-muted-foreground mb-3">{selectedRegion.description}</p>
                   <Button variant="hero" onClick={handleConfirmSelection}>
                     Confirm Selection
@@ -309,27 +410,27 @@ const HeartModel3D = ({ isOpen, onClose, onSelectLocation }: HeartModel3DProps) 
                 </div>
               ) : (
                 <p className="text-center text-muted-foreground">
-                  Click on a colored region to select where your chest hurts
+                  🖱️ Click and drag to rotate • Click colored markers to select pain location
                 </p>
               )}
             </div>
 
             {/* Legend */}
-            <div className="p-4 border-t border-border">
-              <p className="text-xs text-muted-foreground mb-2">Pain Regions:</p>
-              <div className="flex flex-wrap gap-2">
+            <div className="p-4 border-t border-border max-h-32 overflow-y-auto">
+              <p className="text-xs text-muted-foreground mb-2">10 Pain Regions:</p>
+              <div className="flex flex-wrap gap-1.5">
                 {chestRegions.map((region) => (
                   <button
                     key={region.id}
                     onClick={() => handleSelectRegion(region)}
                     className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs transition-all ${
                       selectedRegion?.id === region.id 
-                        ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' 
+                        ? 'ring-2 ring-primary ring-offset-2 ring-offset-background bg-primary/10' 
                         : 'hover:bg-muted'
                     }`}
                   >
                     <span 
-                      className="w-3 h-3 rounded-full"
+                      className="w-2.5 h-2.5 rounded-full"
                       style={{ backgroundColor: region.color }}
                     />
                     <span className="text-foreground">{region.name}</span>
