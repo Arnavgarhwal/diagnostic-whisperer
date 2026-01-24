@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Shield, MapPin, Activity, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { requestMotionPermission as requestNativeMotion, requestLocationPermission as requestNativeLocation } from "@/services/nativeMotionService";
+import { isNativePlatform, getPlatform } from "@/services/nativeSmsService";
 
 interface PermissionRequestProps {
   onComplete: () => void;
@@ -32,55 +34,45 @@ const PermissionRequest = ({ onComplete }: PermissionRequestProps) => {
     return () => clearTimeout(timer);
   }, [onComplete]);
 
-  const requestMotionPermission = async () => {
+  const handleMotionPermission = async () => {
     setRequesting("motion");
     
     try {
-      // For iOS 13+
-      if (typeof (DeviceMotionEvent as any).requestPermission === "function") {
-        const permission = await (DeviceMotionEvent as any).requestPermission();
-        if (permission === "granted") {
-          setPermissions(prev => ({ ...prev, motion: true }));
-          toast.success("Motion detection enabled!");
-        } else {
-          toast.error("Motion permission denied. Fall detection won't work.");
-        }
-      } else {
-        // For non-iOS devices, motion is usually auto-granted
+      // Use native service for permission request
+      const granted = await requestNativeMotion();
+      
+      if (granted) {
         setPermissions(prev => ({ ...prev, motion: true }));
         toast.success("Motion detection enabled!");
+      } else {
+        toast.error("Motion permission denied. Fall detection won't work.");
       }
     } catch (error) {
       console.error("Motion permission error:", error);
       // Fallback - assume permission for non-supporting browsers
       setPermissions(prev => ({ ...prev, motion: true }));
+      toast.success("Motion detection enabled!");
     }
     
     setRequesting(null);
   };
 
-  const requestLocationPermission = async () => {
+  const handleLocationPermission = async () => {
     setRequesting("location");
     
     try {
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 10000,
-        });
-      });
+      // Use native service for permission request
+      const granted = await requestNativeLocation();
       
-      if (position) {
+      if (granted) {
         setPermissions(prev => ({ ...prev, location: true }));
         toast.success("Location access enabled!");
+      } else {
+        toast.error("Location permission denied. Emergency alerts won't include your location.");
       }
     } catch (error: any) {
       console.error("Location permission error:", error);
-      if (error.code === 1) {
-        toast.error("Location permission denied. Emergency alerts won't include your location.");
-      } else {
-        toast.error("Could not get location. Please try again.");
-      }
+      toast.error("Could not get location permission. Please try again.");
     }
     
     setRequesting(null);
@@ -148,7 +140,7 @@ const PermissionRequest = ({ onComplete }: PermissionRequestProps) => {
               ) : (
                 <Button
                   size="sm"
-                  onClick={requestMotionPermission}
+                  onClick={handleMotionPermission}
                   disabled={requesting === "motion"}
                 >
                   {requesting === "motion" ? "..." : "Allow"}
@@ -174,7 +166,7 @@ const PermissionRequest = ({ onComplete }: PermissionRequestProps) => {
               ) : (
                 <Button
                   size="sm"
-                  onClick={requestLocationPermission}
+                  onClick={handleLocationPermission}
                   disabled={requesting === "location"}
                 >
                   {requesting === "location" ? "..." : "Allow"}

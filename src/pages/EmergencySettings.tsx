@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Plus, Trash2, User, Phone, MessageSquare, Save, RotateCcw, Shield, Clock } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, User, Phone, MessageSquare, Save, RotateCcw, Shield, Clock, Smartphone, Globe } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useEmergencySettings, EmergencyContact } from "@/hooks/useEmergencySettings";
+import { isNativePlatform, getPlatform } from "@/services/nativeSmsService";
 
 const EmergencySettings = () => {
   const { settings, saveSettings, addContact, updateContact, removeContact, resetToDefaults } = useEmergencySettings();
@@ -20,6 +21,13 @@ const EmergencySettings = () => {
     phone: "",
     preferredMethod: "both",
   });
+  const [platform, setPlatform] = useState<string>('web');
+  const [isNative, setIsNative] = useState<boolean>(false);
+
+  useEffect(() => {
+    setPlatform(getPlatform());
+    setIsNative(isNativePlatform());
+  }, []);
 
   const handleAddContact = () => {
     if (!newContact.name.trim() || !newContact.phone.trim()) {
@@ -134,11 +142,28 @@ const EmergencySettings = () => {
                 </p>
               </div>
 
-              {/* Browser Limitation Notice */}
-              <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
-                <p className="text-xs text-amber-700 dark:text-amber-300">
-                  <strong>Note:</strong> Due to browser security, messages will open in SMS/WhatsApp apps with pre-filled content. 
-                  On mobile devices, tap "Send" to complete the alert. For fully automatic alerts, consider using a native app version.
+              {/* Platform Status */}
+              <div className={`rounded-lg p-3 ${isNative ? 'bg-green-500/10 border border-green-500/30' : 'bg-amber-500/10 border border-amber-500/30'}`}>
+                <div className="flex items-center gap-2 mb-2">
+                  {isNative ? (
+                    <Smartphone className="w-4 h-4 text-green-600 dark:text-green-400" />
+                  ) : (
+                    <Globe className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  )}
+                  <span className={`text-sm font-medium ${isNative ? 'text-green-700 dark:text-green-300' : 'text-amber-700 dark:text-amber-300'}`}>
+                    {isNative ? `Native App (${platform})` : 'Web Browser Mode'}
+                  </span>
+                </div>
+                <p className={`text-xs ${isNative ? 'text-green-700 dark:text-green-300' : 'text-amber-700 dark:text-amber-300'}`}>
+                  {isNative ? (
+                    <>
+                      <strong>✓ Full automatic alerts enabled!</strong> Emergency SMS and WhatsApp messages will be sent automatically without any user interaction when a fall is detected.
+                    </>
+                  ) : (
+                    <>
+                      <strong>Note:</strong> Running in web browser mode. For fully automatic emergency alerts without any taps, export this app as a native mobile app using Capacitor. Messages will open in apps with pre-filled content in web mode.
+                    </>
+                  )}
                 </p>
               </div>
             </CardContent>
