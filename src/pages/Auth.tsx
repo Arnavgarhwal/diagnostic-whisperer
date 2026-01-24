@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
+import PermissionRequest from "@/components/PermissionRequest";
 
 interface StoredUser {
   name: string;
@@ -19,6 +20,8 @@ interface StoredUser {
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
+  const [showPermissionRequest, setShowPermissionRequest] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -129,7 +132,9 @@ const Auth = () => {
         description: "Your account has been created successfully."
       });
       
-      navigate("/dashboard");
+      // Show permission request for new users
+      setShowPermissionRequest(true);
+      setPendingNavigation(true);
 
     } else {
       // SIGN IN FLOW
@@ -189,7 +194,14 @@ const Auth = () => {
         description: "You have successfully signed in."
       });
       
-      navigate("/dashboard");
+      // Show permission request if not already granted
+      const permissionsGranted = localStorage.getItem("health-app-permissions-granted");
+      if (!permissionsGranted || permissionsGranted === "skipped") {
+        setShowPermissionRequest(true);
+        setPendingNavigation(true);
+      } else {
+        navigate("/dashboard");
+      }
     }
   };
 
@@ -207,6 +219,13 @@ const Auth = () => {
     navigate("/");
   };
 
+  const handlePermissionComplete = () => {
+    setShowPermissionRequest(false);
+    if (pendingNavigation) {
+      navigate("/dashboard");
+    }
+  };
+
   const features = [
     "AI-powered symptom analysis",
     "Book doctor consultations",
@@ -216,13 +235,17 @@ const Auth = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background flex">
-      {/* Left Side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary/10 via-background to-health-coral/10 p-12 flex-col justify-between relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,hsl(var(--primary)/0.1),transparent_50%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,hsl(var(--health-coral)/0.1),transparent_50%)]" />
-        
-        <div className="relative z-10">
+    <>
+      {showPermissionRequest && (
+        <PermissionRequest onComplete={handlePermissionComplete} />
+      )}
+      <div className="min-h-screen bg-background flex">
+        {/* Left Side - Branding */}
+        <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary/10 via-background to-health-coral/10 p-12 flex-col justify-between relative overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,hsl(var(--primary)/0.1),transparent_50%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,hsl(var(--health-coral)/0.1),transparent_50%)]" />
+          
+          <div className="relative z-10">
           <Link to="/" className="flex items-center gap-2 group">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-health-teal-dark flex items-center justify-center shadow-lg">
               <Activity className="w-6 h-6 text-primary-foreground" />
@@ -466,6 +489,7 @@ const Auth = () => {
         </motion.div>
       </div>
     </div>
+    </>
   );
 };
 

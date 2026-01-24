@@ -113,7 +113,10 @@ const EmergencySettings = () => {
                 </Label>
                 <Select
                   value={settings.countdownSeconds.toString()}
-                  onValueChange={(value) => saveSettings({ countdownSeconds: parseInt(value) })}
+                  onValueChange={(value) => {
+                    saveSettings({ countdownSeconds: parseInt(value) });
+                    toast.success(`Countdown duration set to ${value} seconds`);
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -126,6 +129,17 @@ const EmergencySettings = () => {
                     <SelectItem value="60">60 seconds</SelectItem>
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">
+                  Time before emergency alerts are automatically sent after a fall is detected.
+                </p>
+              </div>
+
+              {/* Browser Limitation Notice */}
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  <strong>Note:</strong> Due to browser security, messages will open in SMS/WhatsApp apps with pre-filled content. 
+                  On mobile devices, tap "Send" to complete the alert. For fully automatic alerts, consider using a native app version.
+                </p>
               </div>
             </CardContent>
           </Card>

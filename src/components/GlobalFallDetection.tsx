@@ -66,7 +66,10 @@ const GlobalFallDetection = () => {
     location,
     dismissFall,
     startMonitoring,
-  } = useFallDetection(handleSOSTrigger);
+  } = useFallDetection({
+    onSOSTrigger: handleSOSTrigger,
+    countdownSeconds: settings.countdownSeconds,
+  });
 
   // Start monitoring on mount
   useEffect(() => {
