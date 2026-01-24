@@ -7,10 +7,16 @@ interface FallDetectionState {
   location: { lat: number; lng: number } | null;
 }
 
-export const useFallDetection = (onSOSTrigger: (location: { lat: number; lng: number } | null) => void) => {
+interface UseFallDetectionOptions {
+  onSOSTrigger: (location: { lat: number; lng: number } | null) => void;
+  countdownSeconds?: number;
+}
+
+export const useFallDetection = (options: UseFallDetectionOptions) => {
+  const { onSOSTrigger, countdownSeconds = 20 } = options;
   const [state, setState] = useState<FallDetectionState>({
     isFallDetected: false,
-    countdown: 20,
+    countdown: countdownSeconds,
     isActive: false,
     location: null,
   });
@@ -46,11 +52,11 @@ export const useFallDetection = (onSOSTrigger: (location: { lat: number; lng: nu
     
     setState({
       isFallDetected: true,
-      countdown: 20,
+      countdown: countdownSeconds,
       isActive: true,
       location,
     });
-  }, [getLocation]);
+  }, [getLocation, countdownSeconds]);
 
   const dismissFall = useCallback(() => {
     if (countdownRef.current) {
@@ -60,11 +66,11 @@ export const useFallDetection = (onSOSTrigger: (location: { lat: number; lng: nu
     
     setState({
       isFallDetected: false,
-      countdown: 20,
+      countdown: countdownSeconds,
       isActive: false,
       location: null,
     });
-  }, []);
+  }, [countdownSeconds]);
 
   const startMonitoring = useCallback(() => {
     setState(prev => ({ ...prev, isActive: true }));
@@ -86,7 +92,7 @@ export const useFallDetection = (onSOSTrigger: (location: { lat: number; lng: nu
             return {
               ...prev,
               isFallDetected: false,
-              countdown: 20,
+              countdown: countdownSeconds,
             };
           }
           return { ...prev, countdown: prev.countdown - 1 };
