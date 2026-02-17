@@ -279,6 +279,18 @@ const Dashboard = () => {
                 </p>
               </div>
               <div className="flex items-center gap-3">
+                {/* Manual SOS Panic Button */}
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="animate-pulse hover:animate-none"
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('simulate-fall-detection'));
+                  }}
+                >
+                  <Phone className="w-4 h-4 mr-1" />
+                  SOS
+                </Button>
                 <div className="relative">
                   <Button 
                     variant="outline" 

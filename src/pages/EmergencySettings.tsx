@@ -286,6 +286,36 @@ const EmergencySettings = () => {
             </CardContent>
           </Card>
 
+          {/* Test Fall Detection */}
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="w-5 h-5 text-destructive" />
+                Test Fall Detection
+              </CardTitle>
+              <CardDescription>
+                Simulate a fall detection event to test your emergency alert setup
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">
+                This will trigger the fall detection overlay with countdown. When the countdown reaches zero, emergency alerts will be sent to your configured contacts.
+              </p>
+              <Button
+                variant="destructive"
+                className="w-full"
+                onClick={() => {
+                  // Dispatch custom event that GlobalFallDetection listens for
+                  window.dispatchEvent(new CustomEvent('simulate-fall-detection'));
+                  toast.success("Fall detection simulated!", { description: "The fall detection overlay should appear now." });
+                }}
+              >
+                <Shield className="w-4 h-4 mr-2" />
+                Simulate Fall Detection
+              </Button>
+            </CardContent>
+          </Card>
+
           {/* Reset Button */}
           <div className="flex justify-center">
             <Button variant="outline" onClick={handleReset}>

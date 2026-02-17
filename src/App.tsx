@@ -23,6 +23,15 @@ import MedicineReminder from "./pages/MedicineReminder";
 import BMICalculator from "./pages/BMICalculator";
 import NearbyHospitals from "./pages/NearbyHospitals";
 import HealthDashboard from "./pages/HealthDashboard";
+import HealthGoals from "./pages/HealthGoals";
+import DietTracker from "./pages/DietTracker";
+import SleepTracker from "./pages/SleepTracker";
+import MoodTracker from "./pages/MoodTracker";
+import HealthQuiz from "./pages/HealthQuiz";
+import DrugInteractions from "./pages/DrugInteractions";
+import PatientTimeline from "./pages/PatientTimeline";
+import HealthScore from "./pages/HealthScore";
+import HealthChallenges from "./pages/HealthChallenges";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -54,6 +63,15 @@ const App = () => (
           <Route path="/bmi-calculator" element={<BMICalculator />} />
           <Route path="/nearby-hospitals" element={<NearbyHospitals />} />
           <Route path="/health-dashboard" element={<HealthDashboard />} />
+          <Route path="/health-goals" element={<HealthGoals />} />
+          <Route path="/diet-tracker" element={<DietTracker />} />
+          <Route path="/sleep-tracker" element={<SleepTracker />} />
+          <Route path="/mood-tracker" element={<MoodTracker />} />
+          <Route path="/health-quiz" element={<HealthQuiz />} />
+          <Route path="/drug-interactions" element={<DrugInteractions />} />
+          <Route path="/patient-timeline" element={<PatientTimeline />} />
+          <Route path="/health-score" element={<HealthScore />} />
+          <Route path="/health-challenges" element={<HealthChallenges />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
