@@ -2,7 +2,8 @@ import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { 
   Phone, Pill, Calculator, MapPin, Heart, Users, FileText, 
-  Activity, Stethoscope, BookOpen, ShoppingBag, Brain, Calendar
+  Activity, Stethoscope, BookOpen, ShoppingBag, Brain, Calendar,
+  Target, Apple, Moon, Smile, HelpCircle, ShieldAlert, Clock, Award, Trophy
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -102,6 +103,78 @@ const quickLinks = [
     href: "/diagnostics",
     color: "from-rose-500 to-pink-600",
     bgColor: "bg-rose-50 dark:bg-rose-950/30"
+  },
+  {
+    title: "Health Goals",
+    description: "Track wellness objectives",
+    icon: Target,
+    href: "/health-goals",
+    color: "from-orange-500 to-red-600",
+    bgColor: "bg-orange-50 dark:bg-orange-950/30"
+  },
+  {
+    title: "Diet Tracker",
+    description: "Log meals & macros",
+    icon: Apple,
+    href: "/diet-tracker",
+    color: "from-lime-500 to-green-600",
+    bgColor: "bg-lime-50 dark:bg-lime-950/30"
+  },
+  {
+    title: "Sleep Tracker",
+    description: "Monitor sleep patterns",
+    icon: Moon,
+    href: "/sleep-tracker",
+    color: "from-indigo-500 to-purple-600",
+    bgColor: "bg-indigo-50 dark:bg-indigo-950/30"
+  },
+  {
+    title: "Mood Tracker",
+    description: "Track your feelings",
+    icon: Smile,
+    href: "/mood-tracker",
+    color: "from-yellow-500 to-amber-600",
+    bgColor: "bg-yellow-50 dark:bg-yellow-950/30"
+  },
+  {
+    title: "Health Quiz",
+    description: "Test your knowledge",
+    icon: HelpCircle,
+    href: "/health-quiz",
+    color: "from-sky-500 to-blue-600",
+    bgColor: "bg-sky-50 dark:bg-sky-950/30"
+  },
+  {
+    title: "Drug Interactions",
+    description: "Check medicine safety",
+    icon: ShieldAlert,
+    href: "/drug-interactions",
+    color: "from-red-500 to-rose-600",
+    bgColor: "bg-red-50 dark:bg-red-950/30"
+  },
+  {
+    title: "Patient Timeline",
+    description: "Your health history",
+    icon: Clock,
+    href: "/patient-timeline",
+    color: "from-slate-500 to-gray-600",
+    bgColor: "bg-slate-50 dark:bg-slate-950/30"
+  },
+  {
+    title: "Health Score",
+    description: "Wellness assessment",
+    icon: Award,
+    href: "/health-score",
+    color: "from-emerald-500 to-teal-600",
+    bgColor: "bg-emerald-50 dark:bg-emerald-950/30"
+  },
+  {
+    title: "Health Challenges",
+    description: "Join & compete",
+    icon: Trophy,
+    href: "/health-challenges",
+    color: "from-amber-500 to-yellow-600",
+    bgColor: "bg-amber-50 dark:bg-amber-950/30"
   },
 ];
 

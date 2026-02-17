@@ -110,10 +110,21 @@ const GlobalFallDetection = () => {
     location,
     dismissFall,
     startMonitoring,
+    triggerFallDetection,
   } = useFallDetection({
     onSOSTrigger: handleSOSTrigger,
     countdownSeconds: settings.countdownSeconds,
   });
+
+  // Listen for simulated fall detection events
+  useEffect(() => {
+    const handleSimulate = () => {
+      console.log('[Emergency] Simulated fall detection triggered');
+      triggerFallDetection();
+    };
+    window.addEventListener('simulate-fall-detection', handleSimulate);
+    return () => window.removeEventListener('simulate-fall-detection', handleSimulate);
+  }, [triggerFallDetection]);
 
   // Start monitoring on mount
   useEffect(() => {
