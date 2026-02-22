@@ -32,6 +32,20 @@ import DrugInteractions from "./pages/DrugInteractions";
 import PatientTimeline from "./pages/PatientTimeline";
 import HealthScore from "./pages/HealthScore";
 import HealthChallenges from "./pages/HealthChallenges";
+import WaterReminder from "./pages/WaterReminder";
+import BreathingExercises from "./pages/BreathingExercises";
+import SymptomJournal from "./pages/SymptomJournal";
+import PostureMonitor from "./pages/PostureMonitor";
+import FirstAidGuide from "./pages/FirstAidGuide";
+import AIHealthTwin from "./pages/AIHealthTwin";
+import SkinAnalyzer from "./pages/SkinAnalyzer";
+import MentalHealthSupport from "./pages/MentalHealthSupport";
+import PregnancyTracker from "./pages/PregnancyTracker";
+import ElderCareMonitor from "./pages/ElderCareMonitor";
+import VaccinationTracker from "./pages/VaccinationTracker";
+import PredictiveHealthAI from "./pages/PredictiveHealthAI";
+import EmergencyGestureControl from "./pages/EmergencyGestureControl";
+import MedicationSchedule from "./pages/MedicationSchedule";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -72,6 +86,20 @@ const App = () => (
           <Route path="/patient-timeline" element={<PatientTimeline />} />
           <Route path="/health-score" element={<HealthScore />} />
           <Route path="/health-challenges" element={<HealthChallenges />} />
+          <Route path="/water-reminder" element={<WaterReminder />} />
+          <Route path="/breathing-exercises" element={<BreathingExercises />} />
+          <Route path="/symptom-journal" element={<SymptomJournal />} />
+          <Route path="/posture-monitor" element={<PostureMonitor />} />
+          <Route path="/first-aid" element={<FirstAidGuide />} />
+          <Route path="/ai-health-twin" element={<AIHealthTwin />} />
+          <Route path="/skin-analyzer" element={<SkinAnalyzer />} />
+          <Route path="/mental-health" element={<MentalHealthSupport />} />
+          <Route path="/pregnancy-tracker" element={<PregnancyTracker />} />
+          <Route path="/elder-care" element={<ElderCareMonitor />} />
+          <Route path="/vaccination-tracker" element={<VaccinationTracker />} />
+          <Route path="/predictive-health" element={<PredictiveHealthAI />} />
+          <Route path="/gesture-control" element={<EmergencyGestureControl />} />
+          <Route path="/medication-schedule" element={<MedicationSchedule />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

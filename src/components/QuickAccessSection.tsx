@@ -3,7 +3,9 @@ import { Link } from "react-router-dom";
 import { 
   Phone, Pill, Calculator, MapPin, Heart, Users, FileText, 
   Activity, Stethoscope, BookOpen, ShoppingBag, Brain, Calendar,
-  Target, Apple, Moon, Smile, HelpCircle, ShieldAlert, Clock, Award, Trophy
+  Target, Apple, Moon, Smile, HelpCircle, ShieldAlert, Clock, Award, Trophy,
+  Droplets, Wind, NotebookPen, MonitorSmartphone, Cross, Dna, Scan,
+  HeartHandshake, Baby, UserRoundCog, Syringe, TrendingUp, Hand, CalendarClock
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -175,6 +177,118 @@ const quickLinks = [
     href: "/health-challenges",
     color: "from-amber-500 to-yellow-600",
     bgColor: "bg-amber-50 dark:bg-amber-950/30"
+  },
+  {
+    title: "Water Reminder",
+    description: "Stay hydrated daily",
+    icon: Droplets,
+    href: "/water-reminder",
+    color: "from-cyan-500 to-blue-500",
+    bgColor: "bg-cyan-50 dark:bg-cyan-950/30"
+  },
+  {
+    title: "Breathing Exercises",
+    description: "Guided relaxation",
+    icon: Wind,
+    href: "/breathing-exercises",
+    color: "from-sky-500 to-indigo-500",
+    bgColor: "bg-sky-50 dark:bg-sky-950/30"
+  },
+  {
+    title: "Symptom Journal",
+    description: "Log daily symptoms",
+    icon: NotebookPen,
+    href: "/symptom-journal",
+    color: "from-violet-500 to-fuchsia-500",
+    bgColor: "bg-violet-50 dark:bg-violet-950/30"
+  },
+  {
+    title: "Posture Monitor",
+    description: "Fix your posture",
+    icon: MonitorSmartphone,
+    href: "/posture-monitor",
+    color: "from-slate-500 to-zinc-600",
+    bgColor: "bg-slate-50 dark:bg-slate-950/30"
+  },
+  {
+    title: "First Aid Guide",
+    description: "Emergency instructions",
+    icon: Cross,
+    href: "/first-aid",
+    color: "from-red-500 to-rose-600",
+    bgColor: "bg-red-50 dark:bg-red-950/30"
+  },
+  {
+    title: "AI Health Twin",
+    description: "Your digital health replica",
+    icon: Dna,
+    href: "/ai-health-twin",
+    color: "from-purple-500 to-indigo-600",
+    bgColor: "bg-purple-50 dark:bg-purple-950/30"
+  },
+  {
+    title: "Skin Analyzer",
+    description: "AI dermatology scan",
+    icon: Scan,
+    href: "/skin-analyzer",
+    color: "from-pink-500 to-rose-500",
+    bgColor: "bg-pink-50 dark:bg-pink-950/30"
+  },
+  {
+    title: "Mental Health",
+    description: "Wellness & journaling",
+    icon: HeartHandshake,
+    href: "/mental-health",
+    color: "from-emerald-500 to-teal-500",
+    bgColor: "bg-emerald-50 dark:bg-emerald-950/30"
+  },
+  {
+    title: "Pregnancy Tracker",
+    description: "Week-by-week guidance",
+    icon: Baby,
+    href: "/pregnancy-tracker",
+    color: "from-pink-400 to-rose-500",
+    bgColor: "bg-pink-50 dark:bg-pink-950/30"
+  },
+  {
+    title: "Elder Care",
+    description: "Senior health monitor",
+    icon: UserRoundCog,
+    href: "/elder-care",
+    color: "from-amber-500 to-orange-500",
+    bgColor: "bg-amber-50 dark:bg-amber-950/30"
+  },
+  {
+    title: "Vaccinations",
+    description: "Track immunizations",
+    icon: Syringe,
+    href: "/vaccination-tracker",
+    color: "from-blue-500 to-cyan-500",
+    bgColor: "bg-blue-50 dark:bg-blue-950/30"
+  },
+  {
+    title: "Predictive Health AI",
+    description: "Disease risk prediction",
+    icon: TrendingUp,
+    href: "/predictive-health",
+    color: "from-violet-500 to-purple-600",
+    bgColor: "bg-violet-50 dark:bg-violet-950/30"
+  },
+  {
+    title: "Gesture SOS",
+    description: "Hands-free emergency",
+    icon: Hand,
+    href: "/gesture-control",
+    color: "from-red-600 to-rose-700",
+    bgColor: "bg-red-50 dark:bg-red-950/30"
+  },
+  {
+    title: "Med Schedule",
+    description: "Visual med timeline",
+    icon: CalendarClock,
+    href: "/medication-schedule",
+    color: "from-indigo-500 to-blue-600",
+    bgColor: "bg-indigo-50 dark:bg-indigo-950/30"
   },
 ];
 
