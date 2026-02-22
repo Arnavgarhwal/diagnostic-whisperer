@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Bot, User, AlertTriangle, CheckCircle, Activity, RefreshCw, Mic, MicOff, AlertCircle } from "lucide-react";
+import { Send, Bot, User, AlertTriangle, CheckCircle, Activity, RefreshCw, Mic, MicOff, AlertCircle, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,7 @@ import HeartModel3D from "@/components/HeartModel3D";
 import AbdomenModel3D from "@/components/AbdomenModel3D";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { toast } from "@/hooks/use-toast";
+import CameraPainDetector from "@/components/CameraPainDetector";
 
 interface Message {
   id: number;
@@ -41,6 +42,7 @@ const SymptomAnalyzer = () => {
   const [showSkullModel, setShowSkullModel] = useState(false);
   const [showHeartModel, setShowHeartModel] = useState(false);
   const [showAbdomenModel, setShowAbdomenModel] = useState(false);
+  const [showCameraDetector, setShowCameraDetector] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Voice input hook
@@ -341,6 +343,16 @@ const SymptomAnalyzer = () => {
                     {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                   </Button>
                 )}
+
+                {/* Camera Pain Detector Button */}
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={() => setShowCameraDetector(true)}
+                  title="Use camera to detect pain area"
+                >
+                  <Camera className="w-4 h-4" />
+                </Button>
                 
                 <Input
                   value={input}
@@ -380,6 +392,15 @@ const SymptomAnalyzer = () => {
         isOpen={showAbdomenModel}
         onClose={() => setShowAbdomenModel(false)}
         onSelectLocation={handleAbdomenLocationSelect}
+      />
+
+      <CameraPainDetector
+        isOpen={showCameraDetector}
+        onClose={() => setShowCameraDetector(false)}
+        onResult={(result) => {
+          handleSend(`I'm experiencing pain in my ${result.area}. Symptoms: ${result.symptoms.join(', ')}`);
+          setShowCameraDetector(false);
+        }}
       />
 
     </div>
