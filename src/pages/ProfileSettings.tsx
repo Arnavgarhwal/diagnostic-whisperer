@@ -593,12 +593,11 @@ const ProfileSettings = () => {
                               item.key as keyof NotificationSettings
                             ] as boolean
                           }
-                          onCheckedChange={(checked) =>
-                            setNotifications({
-                              ...notifications,
-                              [item.key]: checked,
-                            })
-                          }
+                          onCheckedChange={(checked) => {
+                            const updated = { ...notifications, [item.key]: checked };
+                            setNotifications(updated);
+                            localStorage.setItem("wellsync-notifications", JSON.stringify(updated));
+                          }}
                         />
                       </div>
                     ))}
@@ -642,12 +641,11 @@ const ProfileSettings = () => {
                               item.key as keyof NotificationSettings
                             ] as boolean
                           }
-                          onCheckedChange={(checked) =>
-                            setNotifications({
-                              ...notifications,
-                              [item.key]: checked,
-                            })
-                          }
+                          onCheckedChange={(checked) => {
+                            const updated = { ...notifications, [item.key]: checked };
+                            setNotifications(updated);
+                            localStorage.setItem("wellsync-notifications", JSON.stringify(updated));
+                          }}
                         />
                       </div>
                     ))}
@@ -669,12 +667,11 @@ const ProfileSettings = () => {
                     <select
                       className="w-full md:w-auto h-10 px-4 rounded-md border border-border bg-background"
                       value={notifications.reminderTime}
-                      onChange={(e) =>
-                        setNotifications({
-                          ...notifications,
-                          reminderTime: e.target.value,
-                        })
-                      }
+                      onChange={(e) => {
+                        const updated = { ...notifications, reminderTime: e.target.value };
+                        setNotifications(updated);
+                        localStorage.setItem("wellsync-notifications", JSON.stringify(updated));
+                      }}
                     >
                       <option value="1">1 hour before</option>
                       <option value="2">2 hours before</option>
