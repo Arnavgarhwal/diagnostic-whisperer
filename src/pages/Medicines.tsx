@@ -272,27 +272,38 @@ const Medicines = () => {
                     <span>Total</span>
                     <span className="text-primary">₹{(totalPrice * 83).toFixed(0)}</span>
                   </div>
-                  <Button variant="hero" className="w-full" size="lg">
-                    Proceed to Checkout
+                  <Button
+                    variant="hero"
+                    className="w-full"
+                    size="lg"
+                    onClick={() => {
+                      const searchQuery = cart.map(item => item.name).join('+');
+                      window.open(`https://pharmeasy.in/search/all?name=${encodeURIComponent(searchQuery)}`, '_blank');
+                    }}
+                  >
+                    Buy on PharmEasy
                   </Button>
-                  <a 
-                    href="https://www.1mg.com" 
-                    target="_blank" 
+                  {cart.map(item => (
+                    <a
+                      key={item.id}
+                      href={`https://pharmeasy.in/search/all?name=${encodeURIComponent(item.name)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block"
+                    >
+                      <Button variant="outline" className="w-full text-left justify-start">
+                        🛒 Buy {item.name} on PharmEasy
+                      </Button>
+                    </a>
+                  ))}
+                  <a
+                    href="https://www.1mg.com"
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="block"
                   >
                     <Button variant="outline" className="w-full">
                       Buy from 1mg Pharmacy
-                    </Button>
-                  </a>
-                  <a 
-                    href="https://www.apollopharmacy.in" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="block"
-                  >
-                    <Button variant="outline" className="w-full">
-                      Buy from Apollo Pharmacy
                     </Button>
                   </a>
                   <Button variant="ghost" className="w-full" onClick={clearCart}>
