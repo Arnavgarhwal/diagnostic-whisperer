@@ -120,6 +120,30 @@ const ProfileSettings = () => {
     }
   }, []);
 
+  // Auto-save profile whenever it changes while editing
+  useEffect(() => {
+    if (!isEditing) return;
+    const timer = setTimeout(() => {
+      localStorage.setItem("wellsync-profile", JSON.stringify(profile));
+      // Also sync to user session
+      const savedUser = localStorage.getItem("wellsync-user");
+      if (savedUser) {
+        const user = JSON.parse(savedUser);
+        user.name = profile.name;
+        user.email = profile.email;
+        user.phone = profile.phone;
+        localStorage.setItem("wellsync-user", JSON.stringify(user));
+      }
+      window.dispatchEvent(new Event("auth-change"));
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [profile, isEditing]);
+
+  // Auto-save notification settings on every toggle change
+  useEffect(() => {
+    localStorage.setItem("wellsync-notifications", JSON.stringify(notifications));
+  }, [notifications]);
+
   const handleSaveProfile = () => {
     // Validation
     if (!profile.name.trim()) {

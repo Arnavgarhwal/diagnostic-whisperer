@@ -92,44 +92,31 @@ const Dashboard = () => {
   const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
-    // Load from localStorage or use mock data
+    // Load from localStorage
     const savedAppointments = localStorage.getItem("wellsync-appointments");
     const savedResults = localStorage.getItem("wellsync-test-results");
     const savedOrders = localStorage.getItem("wellsync-orders");
 
-    const appointmentsData = savedAppointments
-      ? JSON.parse(savedAppointments)
-      : [
-          {
-            id: 1,
-            doctorName: "Dr. Sarah Johnson",
-            specialty: "Cardiologist",
-            date: "2024-01-25",
-            time: "10:00 AM",
-            status: "upcoming",
-            type: "Video Consultation",
-          },
-          {
-            id: 2,
-            doctorName: "Dr. Michael Chen",
-            specialty: "General Physician",
-            date: "2024-01-20",
-            time: "2:30 PM",
-            status: "completed",
-            type: "In-Person",
-          },
-          {
-            id: 3,
-            doctorName: "Dr. Emily Davis",
-            specialty: "Dermatologist",
-            date: "2024-01-28",
-            time: "11:00 AM",
-            status: "upcoming",
-            type: "Video Consultation",
-          },
-        ];
-
-    setAppointments(appointmentsData);
+    // Map booked appointments from Consultations page format to Dashboard format
+    if (savedAppointments) {
+      try {
+        const rawAppts = JSON.parse(savedAppointments);
+        const mapped: Appointment[] = rawAppts.map((a: any, i: number) => ({
+          id: a.id || i + 1,
+          doctorName: a.doctorName || "Unknown Doctor",
+          specialty: a.specialty || "General",
+          date: a.date || "",
+          time: a.time || "",
+          status: a.status || "upcoming",
+          type: a.type === "video" ? "Video Consultation" : a.type === "chat" ? "Chat Consultation" : (a.type || "Consultation"),
+        }));
+        setAppointments(mapped);
+      } catch {
+        setAppointments([]);
+      }
+    } else {
+      setAppointments([]);
+    }
 
     setTestResults(
       savedResults
@@ -199,15 +186,16 @@ const Dashboard = () => {
     // Generate notifications based on appointments and health tips
     const generatedNotifications: Notification[] = [];
     
-    // Add appointment reminders
-    appointmentsData
-      .filter((apt: Appointment) => apt.status === "upcoming")
-      .forEach((apt: Appointment, index: number) => {
+    // Add appointment reminders from saved data
+    const apptData = savedAppointments ? JSON.parse(savedAppointments) : [];
+    apptData
+      .filter((apt: any) => (apt.status || "upcoming") === "upcoming")
+      .forEach((apt: any, index: number) => {
         generatedNotifications.push({
           id: index + 1,
           type: "reminder",
           title: "Upcoming Appointment",
-          message: `Don't forget your appointment with ${apt.doctorName} on ${new Date(apt.date).toLocaleDateString()} at ${apt.time}`,
+          message: `Don't forget your appointment with ${apt.doctorName} on ${apt.date} at ${apt.time}`,
           time: "Today",
           read: false,
         });
@@ -511,7 +499,7 @@ const Dashboard = () => {
                             <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
                               <span className="flex items-center gap-1">
                                 <Calendar className="w-3 h-3" />
-                                {new Date(appointment.date).toLocaleDateString()}
+                                {appointment.date}
                               </span>
                               <span className="flex items-center gap-1">
                                 <Clock className="w-3 h-3" />
