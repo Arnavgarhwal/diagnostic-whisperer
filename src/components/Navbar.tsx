@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 const navItems = [
   { label: "Symptom Analyzer", href: "/symptom-analyzer" },
@@ -23,60 +25,46 @@ const navItems = [
   { label: "Blog", href: "/blog" },
 ];
 
-interface UserData {
-  name: string;
-  email?: string;
-  phone: string;
-  isLoggedIn: boolean;
+interface ProfileData {
+  display_name: string | null;
+  phone: string | null;
+  email: string | null;
 }
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [user, setUser] = useState<UserData | null>(null);
+  const [profile, setProfile] = useState<ProfileData | null>(null);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
-    const checkAuth = () => {
-      const userData = localStorage.getItem("wellsync-user");
-      if (userData) {
-        const parsed = JSON.parse(userData);
-        if (parsed.isLoggedIn) {
-          setUser(parsed);
-        } else {
-          setUser(null);
-        }
-      } else {
-        setUser(null);
-      }
-    };
-
-    checkAuth();
-    // Listen for storage changes
-    window.addEventListener("storage", checkAuth);
-    // Custom event for same-tab updates
-    window.addEventListener("auth-change", checkAuth);
-    
-    return () => {
-      window.removeEventListener("storage", checkAuth);
-      window.removeEventListener("auth-change", checkAuth);
-    };
-  }, []);
-
-  const handleLogout = () => {
-    const userData = localStorage.getItem("wellsync-user");
-    if (userData) {
-      const parsed = JSON.parse(userData);
-      parsed.isLoggedIn = false;
-      localStorage.setItem("wellsync-user", JSON.stringify(parsed));
+    if (!user) {
+      setProfile(null);
+      return;
     }
-    setUser(null);
-    window.dispatchEvent(new Event("auth-change"));
-    toast({
-      title: "Logged Out",
-      description: "You have been logged out successfully."
-    });
+    supabase
+      .from("profiles")
+      .select("display_name, phone, email")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => setProfile(data));
+  }, [user]);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setProfile(null);
+    toast({ title: "Logged Out", description: "You have been logged out successfully." });
     navigate("/");
   };
+
+  // Backwards-compatible shape for downstream display
+  const displayUser = user
+    ? {
+        name: profile?.display_name ?? user.email?.split("@")[0] ?? "User",
+        phone: profile?.phone ?? "",
+        email: profile?.email ?? user.email ?? "",
+      }
+    : null;
 
   const getInitials = (name: string) => {
     return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
@@ -113,13 +101,13 @@ const Navbar = () => {
           <div className="hidden md:flex items-center gap-2">
             <ThemeToggle />
             
-            {user ? (
+            {displayUser ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-9 w-9 rounded-full">
                     <Avatar className="h-9 w-9">
                       <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                        {getInitials(user.name)}
+                        {getInitials(displayUser.name)}
                       </AvatarFallback>
                     </Avatar>
                   </Button>
@@ -127,8 +115,8 @@ const Navbar = () => {
                 <DropdownMenuContent className="w-56" align="end" forceMount>
                   <div className="flex items-center justify-start gap-2 p-2">
                     <div className="flex flex-col space-y-1 leading-none">
-                      <p className="font-medium text-foreground">{user.name}</p>
-                      <p className="text-xs text-muted-foreground">{user.phone}</p>
+                      <p className="font-medium text-foreground">{displayUser.name}</p>
+                      <p className="text-xs text-muted-foreground">{displayUser.email}</p>
                     </div>
                   </div>
                   <DropdownMenuSeparator />
@@ -244,7 +232,7 @@ const Navbar = () => {
                 </Link>
               ))}
               
-              {user && (
+              {displayUser && (
                 <>
                   <Link
                     to="/dashboard"
@@ -271,17 +259,17 @@ const Navbar = () => {
               )}
               
               <div className="pt-4 space-y-2">
-                {user ? (
+                {displayUser ? (
                   <>
                     <div className="flex items-center gap-3 py-2">
                       <Avatar className="h-8 w-8">
                         <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                          {getInitials(user.name)}
+                          {getInitials(displayUser.name)}
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="font-medium text-foreground text-sm">{user.name}</p>
-                        <p className="text-xs text-muted-foreground">{user.phone}</p>
+                        <p className="font-medium text-foreground text-sm">{displayUser.name}</p>
+                        <p className="text-xs text-muted-foreground">{displayUser.email}</p>
                       </div>
                     </div>
                     <Button 

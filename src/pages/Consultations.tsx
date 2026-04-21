@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Star, Clock, Video, MessageSquare, Calendar, Check, Globe, Mail, Phone, Send, CreditCard, IndianRupee, CheckCircle } from "lucide-react";
+import { Search, Star, Clock, Video, MessageSquare, Calendar, Check, Globe, Mail, Phone, Send, CreditCard, IndianRupee, CheckCircle, AlertCircle, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -8,27 +8,42 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { doctors, specialties, timeSlots } from "@/data/mockData";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 
-interface BookedAppointment {
+interface Appointment {
   id: string;
-  doctorName: string;
-  doctorImage: string;
-  specialty: string;
-  date: string;
-  time: string;
-  type: "video" | "chat";
-  fee: number;
-  userEmail: string;
-  userPhone: string;
-  bookedAt: string;
+  doctor_name: string;
+  doctor_specialty: string | null;
+  appointment_date: string;
+  appointment_time: string;
+  consultation_type: string;
+  fee_inr: number;
   status: string;
-  paymentMethod: string;
-  paymentStatus: string;
+  payment_method: string | null;
+  payment_status: string;
+  contact_email: string | null;
+  contact_phone: string | null;
+  patient_name: string | null;
+  created_at: string;
 }
 
-const APPOINTMENTS_KEY = "wellsync-appointments";
+interface DeliveryLog {
+  id: string;
+  appointment_id: string;
+  channel: string;
+  recipient: string;
+  status: string;
+  attempts: number;
+  last_error: string | null;
+  updated_at: string;
+}
 
 const Consultations = () => {
+  const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+
   const [search, setSearch] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState("All");
   const [selectedDoctor, setSelectedDoctor] = useState<typeof doctors[0] | null>(null);
@@ -37,7 +52,9 @@ const Consultations = () => {
   const [consultationType, setConsultationType] = useState<"video" | "chat">("video");
   const [userEmail, setUserEmail] = useState("");
   const [userPhone, setUserPhone] = useState("");
-  const [appointments, setAppointments] = useState<BookedAppointment[]>([]);
+  const [patientName, setPatientName] = useState("");
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [deliveryLogs, setDeliveryLogs] = useState<DeliveryLog[]>([]);
   const [showAppointments, setShowAppointments] = useState(false);
   const [bookingStep, setBookingStep] = useState<"details" | "payment" | "confirmed">("details");
   const [paymentMethod, setPaymentMethod] = useState<"upi" | "card" | "netbanking">("upi");
@@ -46,38 +63,84 @@ const Consultations = () => {
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCvv, setCardCvv] = useState("");
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [lastAppointmentId, setLastAppointmentId] = useState<string | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
 
-  // Load user profile & appointments
+  // Redirect to /auth if not signed in
   useEffect(() => {
-    const savedProfile = localStorage.getItem("wellsync-profile");
-    const savedUser = localStorage.getItem("wellsync-user");
-    if (savedProfile) {
-      const p = JSON.parse(savedProfile);
-      setUserEmail(p.email || "");
-      setUserPhone(p.phone || "");
-    } else if (savedUser) {
-      const u = JSON.parse(savedUser);
-      setUserEmail(u.email || "");
-      setUserPhone(u.phone || "");
+    if (!authLoading && !user) {
+      navigate("/auth", { state: { from: "/consultations" }, replace: true });
     }
-    const saved = localStorage.getItem(APPOINTMENTS_KEY);
-    if (saved) setAppointments(JSON.parse(saved));
-  }, []);
+  }, [authLoading, user, navigate]);
 
-  // Auto-save user contact info to profile
-  const autoSaveContact = (email: string, phone: string) => {
-    const savedProfile = localStorage.getItem("wellsync-profile");
-    if (savedProfile) {
-      const p = JSON.parse(savedProfile);
-      p.email = email || p.email;
-      p.phone = phone || p.phone;
-      localStorage.setItem("wellsync-profile", JSON.stringify(p));
+  // Load profile (autofill contact info)
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("profiles")
+      .select("display_name, email, phone")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setUserEmail(data.email ?? user.email ?? "");
+          setUserPhone(data.phone ?? "");
+          setPatientName(data.display_name ?? "");
+        } else {
+          setUserEmail(user.email ?? "");
+        }
+      });
+  }, [user]);
+
+  const loadAppointments = useCallback(async () => {
+    if (!user) return;
+    const { data, error } = await supabase
+      .from("appointments")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+    if (error) {
+      console.error(error);
+      return;
+    }
+    setAppointments(data ?? []);
+
+    if (data && data.length > 0) {
+      const ids = data.map((a) => a.id);
+      const { data: logs } = await supabase
+        .from("appointment_delivery_log")
+        .select("*")
+        .in("appointment_id", ids)
+        .order("updated_at", { ascending: false });
+      setDeliveryLogs(logs ?? []);
     } else {
-      localStorage.setItem("wellsync-profile", JSON.stringify({ email, phone, name: "", dateOfBirth: "", gender: "", address: "", bloodGroup: "", emergencyContact: "", avatarEmoji: "👤" }));
+      setDeliveryLogs([]);
     }
-  };
+  }, [user]);
 
-  const filteredDoctors = doctors.filter(doc => {
+  useEffect(() => {
+    loadAppointments();
+  }, [loadAppointments]);
+
+  // Realtime: live update delivery log status as edge function progresses
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(`delivery-log-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "appointment_delivery_log", filter: `user_id=eq.${user.id}` },
+        () => {
+          loadAppointments();
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, loadAppointments]);
+
+  const filteredDoctors = doctors.filter((doc) => {
     const matchesSearch = doc.name.toLowerCase().includes(search.toLowerCase());
     const matchesSpecialty = selectedSpecialty === "All" || doc.specialty === selectedSpecialty;
     return matchesSearch && matchesSpecialty;
@@ -87,29 +150,12 @@ const Consultations = () => {
     const date = new Date();
     date.setDate(date.getDate() + i);
     return {
-      full: date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-      day: date.toLocaleDateString('en-US', { weekday: 'short' }),
-      date: date.getDate()
+      iso: date.toISOString().split("T")[0],
+      full: date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }),
+      day: date.toLocaleDateString("en-US", { weekday: "short" }),
+      date: date.getDate(),
     };
   });
-
-  const sendConfirmationEmail = (appt: BookedAppointment) => {
-    if (!appt.userEmail) return;
-    const subject = encodeURIComponent(`✅ Appointment Confirmed - ${appt.doctorName} | WellSync`);
-    const body = encodeURIComponent(
-      `Dear Patient,\n\nYour ${appt.type === "video" ? "Video" : "Chat"} consultation has been confirmed!\n\n📋 Appointment Details:\n━━━━━━━━━━━━━━━━━━━━\nDoctor: ${appt.doctorName}\nSpecialty: ${appt.specialty}\nDate: ${appt.date}\nTime: ${appt.time}\nFee: ₹${appt.fee} (Paid via ${appt.paymentMethod})\n━━━━━━━━━━━━━━━━━━━━\n\n⏰ Please be available 5 minutes before your scheduled time.\n\nIf you need to reschedule or cancel, please do so at least 2 hours before the appointment.\n\nThank you for choosing WellSync Health!\n\nBest regards,\nWellSync Health Team\n📞 Support: 1800-123-4567`
-    );
-    window.open(`mailto:${appt.userEmail}?subject=${subject}&body=${body}`, '_self');
-  };
-
-  const sendConfirmationSMS = (appt: BookedAppointment) => {
-    if (!appt.userPhone) return;
-    const cleanPhone = appt.userPhone.replace(/\D/g, '');
-    const message = encodeURIComponent(
-      `✅ WellSync Appointment Confirmed!\n\nDoctor: ${appt.doctorName}\nSpecialty: ${appt.specialty}\nDate: ${appt.date}\nTime: ${appt.time}\nType: ${appt.type === "video" ? "Video Call" : "Chat"}\nFee: ₹${appt.fee} (Paid)\n\nBe available 5 min early.\nSupport: 1800-123-4567`
-    );
-    window.open(`sms:${cleanPhone}?body=${message}`, '_self');
-  };
 
   const handleProceedToPayment = () => {
     if (!selectedDate || !selectedTime) {
@@ -120,13 +166,27 @@ const Consultations = () => {
       toast({ title: "Contact Info Required", description: "Please enter your email or phone for confirmation.", variant: "destructive" });
       return;
     }
-    // Auto-save contact details
-    autoSaveContact(userEmail, userPhone);
     setBookingStep("payment");
   };
 
+  const triggerDelivery = async (appointmentId: string) => {
+    try {
+      const { error } = await supabase.functions.invoke("send-appointment-confirmation", {
+        body: { appointmentId },
+      });
+      if (error) throw error;
+    } catch (err) {
+      console.error("Delivery trigger failed:", err);
+      toast({
+        title: "Delivery in progress",
+        description: "Confirmations are being sent — check status below.",
+      });
+    }
+  };
+
   const handleProcessPayment = async () => {
-    // Validate payment details
+    if (!user || !selectedDoctor) return;
+
     if (paymentMethod === "upi" && !upiId.includes("@")) {
       toast({ title: "Invalid UPI ID", description: "Please enter a valid UPI ID (e.g., name@upi)", variant: "destructive" });
       return;
@@ -143,57 +203,45 @@ const Consultations = () => {
     }
 
     setIsProcessingPayment(true);
-    
     // Simulate payment processing
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    const newAppt: BookedAppointment = {
-      id: Date.now().toString(),
-      doctorName: selectedDoctor!.name,
-      doctorImage: selectedDoctor!.image,
-      specialty: selectedDoctor!.specialty,
-      date: selectedDate,
-      time: selectedTime,
-      type: consultationType,
-      fee: selectedDoctor!.consultationFee,
-      userEmail,
-      userPhone,
-      bookedAt: new Date().toISOString(),
-      status: "upcoming",
-      paymentMethod: paymentMethod === "upi" ? "UPI" : paymentMethod === "card" ? "Card" : "Net Banking",
-      paymentStatus: "paid",
-    };
+    await new Promise((resolve) => setTimeout(resolve, 1500));
 
-    const updated = [...appointments, newAppt];
-    setAppointments(updated);
-    localStorage.setItem(APPOINTMENTS_KEY, JSON.stringify(updated));
+    const isoDate = dates.find((d) => d.full === selectedDate)?.iso ?? new Date().toISOString().split("T")[0];
+
+    const { data: inserted, error } = await supabase
+      .from("appointments")
+      .insert({
+        user_id: user.id,
+        doctor_name: selectedDoctor.name,
+        doctor_specialty: selectedDoctor.specialty,
+        appointment_date: isoDate,
+        appointment_time: selectedTime,
+        consultation_type: consultationType,
+        fee_inr: selectedDoctor.consultationFee,
+        status: "confirmed",
+        payment_method: paymentMethod === "upi" ? "UPI" : paymentMethod === "card" ? "Card" : "Net Banking",
+        payment_status: "paid",
+        contact_email: userEmail || null,
+        contact_phone: userPhone || null,
+        patient_name: patientName || null,
+      })
+      .select()
+      .single();
 
     setIsProcessingPayment(false);
-    setBookingStep("confirmed");
 
-    toast({
-      title: "Payment Successful! 💳",
-      description: `₹${selectedDoctor!.consultationFee} paid via ${newAppt.paymentMethod}`,
-    });
-  };
-
-  const handleSendConfirmations = () => {
-    const lastAppt = appointments[appointments.length - 1];
-    if (!lastAppt) return;
-    
-    // Send email confirmation
-    if (lastAppt.userEmail) {
-      sendConfirmationEmail(lastAppt);
-      toast({ title: "📧 Email Confirmation", description: `Opening email client to send confirmation to ${lastAppt.userEmail}` });
+    if (error || !inserted) {
+      toast({ title: "Booking Failed", description: error?.message ?? "Please try again.", variant: "destructive" });
+      return;
     }
-    
-    // Send SMS with slight delay
-    setTimeout(() => {
-      if (lastAppt.userPhone) {
-        sendConfirmationSMS(lastAppt);
-        toast({ title: "📱 SMS Confirmation", description: `Opening SMS to send confirmation to ${lastAppt.userPhone}` });
-      }
-    }, 1000);
+
+    setLastAppointmentId(inserted.id);
+    setBookingStep("confirmed");
+    toast({ title: "Payment Successful! 💳", description: `₹${selectedDoctor.consultationFee} paid via ${inserted.payment_method}` });
+
+    // Fire-and-forget edge function: handles SMS+Email with retry, writes delivery log
+    triggerDelivery(inserted.id);
+    loadAppointments();
   };
 
   const handleCloseModal = () => {
@@ -205,22 +253,49 @@ const Consultations = () => {
     setCardNumber("");
     setCardExpiry("");
     setCardCvv("");
+    setLastAppointmentId(null);
   };
 
-  const cancelAppointment = (id: string) => {
-    const updated = appointments.filter(a => a.id !== id);
-    setAppointments(updated);
-    localStorage.setItem(APPOINTMENTS_KEY, JSON.stringify(updated));
-    toast({ title: "Appointment Cancelled", description: "Your appointment has been cancelled." });
+  const cancelAppointment = async (id: string) => {
+    const { error } = await supabase.from("appointments").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Appointment Cancelled" });
+    loadAppointments();
   };
+
+  const resendConfirmation = async (id: string) => {
+    setResendingId(id);
+    await triggerDelivery(id);
+    toast({ title: "Resending confirmations…", description: "We'll retry email & SMS delivery." });
+    setTimeout(() => setResendingId(null), 1500);
+  };
+
+  const logsFor = (appointmentId: string) =>
+    deliveryLogs.filter((l) => l.appointment_id === appointmentId);
+
+  const statusBadge = (s: string) => {
+    if (s === "sent") return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
+    if (s === "failed") return "bg-destructive/10 text-destructive";
+    return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
+  };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      
+
       <main className="pt-24 pb-16">
         <div className="container mx-auto px-4">
-          {/* Header */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-12">
             <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">👨‍⚕️ Doctor Consultations</Badge>
             <h1 className="text-4xl md:text-5xl font-bold mb-4">
@@ -231,7 +306,6 @@ const Consultations = () => {
             </p>
           </motion.div>
 
-          {/* My Appointments Toggle */}
           <div className="max-w-4xl mx-auto mb-6 flex justify-center">
             <Button variant={showAppointments ? "default" : "outline"} onClick={() => setShowAppointments(!showAppointments)}>
               <Calendar className="w-4 h-4 mr-2" />
@@ -239,7 +313,6 @@ const Consultations = () => {
             </Button>
           </div>
 
-          {/* Booked Appointments Section */}
           <AnimatePresence>
             {showAppointments && (
               <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="max-w-4xl mx-auto mb-8 overflow-hidden">
@@ -250,46 +323,97 @@ const Consultations = () => {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {appointments.map(appt => (
-                      <motion.div key={appt.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="bg-card border border-border rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center gap-4">
-                        <div className="text-4xl">{appt.doctorImage}</div>
-                        <div className="flex-1">
-                          <h4 className="font-semibold">{appt.doctorName}</h4>
-                          <p className="text-sm text-muted-foreground">{appt.specialty}</p>
-                          <div className="flex flex-wrap gap-2 mt-1">
-                            <Badge variant="secondary">{appt.date}</Badge>
-                            <Badge variant="outline">{appt.time}</Badge>
-                            <Badge className={appt.type === "video" ? "bg-primary/10 text-primary" : "bg-secondary/10 text-secondary"}>
-                              {appt.type === "video" ? <Video className="w-3 h-3 mr-1" /> : <MessageSquare className="w-3 h-3 mr-1" />}
-                              {appt.type}
-                            </Badge>
-                            {appt.paymentStatus === "paid" && (
-                              <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                                <CheckCircle className="w-3 h-3 mr-1" /> Paid
-                              </Badge>
-                            )}
+                    {appointments.map((appt) => {
+                      const logs = logsFor(appt.id);
+                      const emailLog = logs.find((l) => l.channel === "email");
+                      const smsLog = logs.find((l) => l.channel === "sms");
+                      return (
+                        <motion.div key={appt.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="bg-card border border-border rounded-xl p-4 space-y-3">
+                          <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+                            <div className="flex-1">
+                              <h4 className="font-semibold">{appt.doctor_name}</h4>
+                              <p className="text-sm text-muted-foreground">{appt.doctor_specialty}</p>
+                              <div className="flex flex-wrap gap-2 mt-1">
+                                <Badge variant="secondary">{appt.appointment_date}</Badge>
+                                <Badge variant="outline">{appt.appointment_time}</Badge>
+                                <Badge className={appt.consultation_type === "video" ? "bg-primary/10 text-primary" : "bg-secondary/10 text-secondary"}>
+                                  {appt.consultation_type === "video" ? <Video className="w-3 h-3 mr-1" /> : <MessageSquare className="w-3 h-3 mr-1" />}
+                                  {appt.consultation_type}
+                                </Badge>
+                                {appt.payment_status === "paid" && (
+                                  <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                                    <CheckCircle className="w-3 h-3 mr-1" /> Paid
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-primary">₹{appt.fee_inr}</span>
+                              <Button variant="outline" size="sm" disabled={resendingId === appt.id} onClick={() => resendConfirmation(appt.id)}>
+                                {resendingId === appt.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                                <span className="ml-1">Resend</span>
+                              </Button>
+                              <Button variant="destructive" size="sm" onClick={() => cancelAppointment(appt.id)}>Cancel</Button>
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-primary">₹{appt.fee}</span>
-                          <Button variant="destructive" size="sm" onClick={() => cancelAppointment(appt.id)}>Cancel</Button>
-                        </div>
-                      </motion.div>
-                    ))}
+
+                          {/* Delivery status panel */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-2 border-t border-border">
+                            <div className="flex items-center justify-between text-xs p-2 rounded bg-muted/30">
+                              <div className="flex items-center gap-2">
+                                <Mail className="w-3 h-3 text-muted-foreground" />
+                                <span className="text-muted-foreground">Email</span>
+                                <span className="text-foreground">{appt.contact_email ?? "—"}</span>
+                              </div>
+                              {emailLog ? (
+                                <Badge className={statusBadge(emailLog.status)}>
+                                  {emailLog.status} · {emailLog.attempts}/3
+                                </Badge>
+                              ) : appt.contact_email ? (
+                                <Badge variant="outline" className="text-xs">queued</Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-xs">no email</Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center justify-between text-xs p-2 rounded bg-muted/30">
+                              <div className="flex items-center gap-2">
+                                <Phone className="w-3 h-3 text-muted-foreground" />
+                                <span className="text-muted-foreground">SMS</span>
+                                <span className="text-foreground">{appt.contact_phone ?? "—"}</span>
+                              </div>
+                              {smsLog ? (
+                                <Badge className={statusBadge(smsLog.status)}>
+                                  {smsLog.status} · {smsLog.attempts}/3
+                                </Badge>
+                              ) : appt.contact_phone ? (
+                                <Badge variant="outline" className="text-xs">queued</Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-xs">no phone</Badge>
+                              )}
+                            </div>
+                          </div>
+                          {(emailLog?.last_error || smsLog?.last_error) && (
+                            <div className="text-xs text-destructive flex items-start gap-1">
+                              <AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                              <span>{emailLog?.last_error || smsLog?.last_error}</span>
+                            </div>
+                          )}
+                        </motion.div>
+                      );
+                    })}
                   </div>
                 )}
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Search and Filter */}
           <div className="max-w-4xl mx-auto mb-8">
             <div className="relative mb-6">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
               <Input placeholder="Search doctors by name..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10 h-12" />
             </div>
             <div className="flex flex-wrap gap-2">
-              {specialties.map(spec => (
+              {specialties.map((spec) => (
                 <Button key={spec} variant={selectedSpecialty === spec ? "default" : "outline"} size="sm" onClick={() => setSelectedSpecialty(spec)} className={selectedSpecialty === spec ? "bg-primary" : ""}>
                   {spec}
                 </Button>
@@ -297,7 +421,6 @@ const Consultations = () => {
             </div>
           </div>
 
-          {/* Doctor Grid */}
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredDoctors.map((doctor, index) => (
               <motion.div key={doctor.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }} className="bg-card border border-border rounded-2xl p-6 hover:shadow-lg hover:border-primary/30 transition-all">
@@ -340,10 +463,9 @@ const Consultations = () => {
         </div>
       </main>
 
-      {/* Booking Modal */}
       {selectedDoctor && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={handleCloseModal}>
-          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-background rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-background rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="p-6 border-b border-border">
               <div className="flex items-center gap-4">
                 <div className="text-5xl">{selectedDoctor.image}</div>
@@ -353,7 +475,6 @@ const Consultations = () => {
                   <p className="text-primary font-semibold mt-1">₹{selectedDoctor.consultationFee}</p>
                 </div>
               </div>
-              {/* Step indicator */}
               <div className="flex items-center gap-2 mt-4">
                 {["details", "payment", "confirmed"].map((step, i) => (
                   <div key={step} className="flex items-center gap-2">
@@ -372,7 +493,6 @@ const Consultations = () => {
             <div className="p-6 space-y-6">
               {bookingStep === "details" && (
                 <>
-                  {/* User Contact Details */}
                   <div>
                     <h3 className="font-semibold mb-3 flex items-center gap-2"><Send className="w-4 h-4" /> Your Contact Details</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -385,10 +505,9 @@ const Consultations = () => {
                         <Input placeholder="+91 98765 43210" value={userPhone} onChange={(e) => setUserPhone(e.target.value)} className="pl-9" />
                       </div>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">Confirmation will be sent via email & SMS</p>
+                    <p className="text-xs text-muted-foreground mt-1">Real confirmation will be sent via email & SMS with automatic retry</p>
                   </div>
 
-                  {/* Consultation Type */}
                   <div>
                     <h3 className="font-semibold mb-3">Consultation Type</h3>
                     <div className="grid grid-cols-2 gap-3">
@@ -401,11 +520,10 @@ const Consultations = () => {
                     </div>
                   </div>
 
-                  {/* Date Selection */}
                   <div>
                     <h3 className="font-semibold mb-3">Select Date</h3>
                     <div className="grid grid-cols-7 gap-2">
-                      {dates.map(date => (
+                      {dates.map((date) => (
                         <Button key={date.full} variant={selectedDate === date.full ? "default" : "outline"} className="flex flex-col h-auto py-2" onClick={() => setSelectedDate(date.full)}>
                           <span className="text-xs">{date.day}</span>
                           <span className="text-lg font-bold">{date.date}</span>
@@ -414,11 +532,10 @@ const Consultations = () => {
                     </div>
                   </div>
 
-                  {/* Time Selection */}
                   <div>
                     <h3 className="font-semibold mb-3">Available Slots</h3>
                     <div className="grid grid-cols-3 gap-2">
-                      {timeSlots.map(time => (
+                      {timeSlots.map((time) => (
                         <Button key={time} variant={selectedTime === time ? "default" : "outline"} size="sm" onClick={() => setSelectedTime(time)}>
                           {time}
                         </Button>
@@ -511,7 +628,7 @@ const Consultations = () => {
                     <Button variant="hero" className="flex-1" size="lg" onClick={handleProcessPayment} disabled={isProcessingPayment}>
                       {isProcessingPayment ? (
                         <span className="flex items-center gap-2">
-                          <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <Loader2 className="w-4 h-4 animate-spin" />
                           Processing...
                         </span>
                       ) : (
@@ -531,7 +648,7 @@ const Consultations = () => {
                   </motion.div>
                   <div>
                     <h3 className="text-2xl font-bold mb-2">Booking Confirmed! 🎉</h3>
-                    <p className="text-muted-foreground">Your appointment has been booked and payment received.</p>
+                    <p className="text-muted-foreground">Your appointment is booked. Confirmation is being sent via Email & SMS.</p>
                   </div>
                   <div className="p-4 rounded-xl bg-accent/50 border border-border text-left space-y-2">
                     <div className="flex justify-between"><span className="text-muted-foreground">Doctor</span><span className="font-medium">{selectedDoctor.name}</span></div>
@@ -541,38 +658,28 @@ const Consultations = () => {
                     <div className="flex justify-between"><span className="text-muted-foreground">Amount Paid</span><span className="font-bold text-primary">₹{selectedDoctor.consultationFee}</span></div>
                   </div>
 
-                  <div className="space-y-3">
-                    <p className="text-sm font-medium">Send Confirmation via:</p>
-                    <div className="flex gap-3">
-                      {userEmail && (
-                        <Button variant="outline" className="flex-1" onClick={() => {
-                          const lastAppt = appointments[appointments.length - 1];
-                          if (lastAppt) sendConfirmationEmail(lastAppt);
-                          toast({ title: "📧 Email Opened", description: `Confirmation email ready for ${userEmail}` });
-                        }}>
-                          <Mail className="w-4 h-4 mr-2" /> Email
-                        </Button>
-                      )}
-                      {userPhone && (
-                        <Button variant="outline" className="flex-1" onClick={() => {
-                          const lastAppt = appointments[appointments.length - 1];
-                          if (lastAppt) sendConfirmationSMS(lastAppt);
-                          toast({ title: "📱 SMS Opened", description: `SMS confirmation ready for ${userPhone}` });
-                        }}>
-                          <Phone className="w-4 h-4 mr-2" /> SMS
-                        </Button>
+                  {/* Live delivery status for the just-booked appointment */}
+                  {lastAppointmentId && (
+                    <div className="text-left space-y-2 p-3 rounded-lg bg-muted/30 border border-border">
+                      <p className="text-sm font-medium flex items-center gap-2">
+                        <Send className="w-3 h-3" /> Delivery status (auto-retries up to 3 times)
+                      </p>
+                      {logsFor(lastAppointmentId).length === 0 ? (
+                        <p className="text-xs text-muted-foreground flex items-center gap-2">
+                          <Loader2 className="w-3 h-3 animate-spin" /> Sending…
+                        </p>
+                      ) : (
+                        logsFor(lastAppointmentId).map((l) => (
+                          <div key={l.id} className="flex items-center justify-between text-xs">
+                            <span className="capitalize text-muted-foreground">{l.channel} → {l.recipient}</span>
+                            <Badge className={statusBadge(l.status)}>{l.status} ({l.attempts}/3)</Badge>
+                          </div>
+                        ))
                       )}
                     </div>
-                    {(userEmail || userPhone) && (
-                      <Button variant="hero" className="w-full" onClick={handleSendConfirmations}>
-                        <Send className="w-4 h-4 mr-2" /> Send All Confirmations
-                      </Button>
-                    )}
-                  </div>
+                  )}
 
-                  <Button variant="outline" className="w-full" onClick={handleCloseModal}>
-                    Close
-                  </Button>
+                  <Button variant="outline" className="w-full" onClick={handleCloseModal}>Close</Button>
                 </div>
               )}
             </div>
