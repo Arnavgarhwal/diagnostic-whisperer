@@ -101,13 +101,13 @@ const Navbar = () => {
           <div className="hidden md:flex items-center gap-2">
             <ThemeToggle />
             
-            {user ? (
+            {displayUser ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-9 w-9 rounded-full">
                     <Avatar className="h-9 w-9">
                       <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                        {getInitials(user.name)}
+                        {getInitials(displayUser.name)}
                       </AvatarFallback>
                     </Avatar>
                   </Button>
@@ -115,8 +115,8 @@ const Navbar = () => {
                 <DropdownMenuContent className="w-56" align="end" forceMount>
                   <div className="flex items-center justify-start gap-2 p-2">
                     <div className="flex flex-col space-y-1 leading-none">
-                      <p className="font-medium text-foreground">{user.name}</p>
-                      <p className="text-xs text-muted-foreground">{user.phone}</p>
+                      <p className="font-medium text-foreground">{displayUser.name}</p>
+                      <p className="text-xs text-muted-foreground">{displayUser.email}</p>
                     </div>
                   </div>
                   <DropdownMenuSeparator />
@@ -232,7 +232,7 @@ const Navbar = () => {
                 </Link>
               ))}
               
-              {user && (
+              {displayUser && (
                 <>
                   <Link
                     to="/dashboard"
@@ -259,17 +259,17 @@ const Navbar = () => {
               )}
               
               <div className="pt-4 space-y-2">
-                {user ? (
+                {displayUser ? (
                   <>
                     <div className="flex items-center gap-3 py-2">
                       <Avatar className="h-8 w-8">
                         <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                          {getInitials(user.name)}
+                          {getInitials(displayUser.name)}
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="font-medium text-foreground text-sm">{user.name}</p>
-                        <p className="text-xs text-muted-foreground">{user.phone}</p>
+                        <p className="font-medium text-foreground text-sm">{displayUser.name}</p>
+                        <p className="text-xs text-muted-foreground">{displayUser.email}</p>
                       </div>
                     </div>
                     <Button 
