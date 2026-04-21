@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 const navItems = [
   { label: "Symptom Analyzer", href: "/symptom-analyzer" },
@@ -23,60 +25,46 @@ const navItems = [
   { label: "Blog", href: "/blog" },
 ];
 
-interface UserData {
-  name: string;
-  email?: string;
-  phone: string;
-  isLoggedIn: boolean;
+interface ProfileData {
+  display_name: string | null;
+  phone: string | null;
+  email: string | null;
 }
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [user, setUser] = useState<UserData | null>(null);
+  const [profile, setProfile] = useState<ProfileData | null>(null);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
-    const checkAuth = () => {
-      const userData = localStorage.getItem("wellsync-user");
-      if (userData) {
-        const parsed = JSON.parse(userData);
-        if (parsed.isLoggedIn) {
-          setUser(parsed);
-        } else {
-          setUser(null);
-        }
-      } else {
-        setUser(null);
-      }
-    };
-
-    checkAuth();
-    // Listen for storage changes
-    window.addEventListener("storage", checkAuth);
-    // Custom event for same-tab updates
-    window.addEventListener("auth-change", checkAuth);
-    
-    return () => {
-      window.removeEventListener("storage", checkAuth);
-      window.removeEventListener("auth-change", checkAuth);
-    };
-  }, []);
-
-  const handleLogout = () => {
-    const userData = localStorage.getItem("wellsync-user");
-    if (userData) {
-      const parsed = JSON.parse(userData);
-      parsed.isLoggedIn = false;
-      localStorage.setItem("wellsync-user", JSON.stringify(parsed));
+    if (!user) {
+      setProfile(null);
+      return;
     }
-    setUser(null);
-    window.dispatchEvent(new Event("auth-change"));
-    toast({
-      title: "Logged Out",
-      description: "You have been logged out successfully."
-    });
+    supabase
+      .from("profiles")
+      .select("display_name, phone, email")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => setProfile(data));
+  }, [user]);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setProfile(null);
+    toast({ title: "Logged Out", description: "You have been logged out successfully." });
     navigate("/");
   };
+
+  // Backwards-compatible shape for downstream display
+  const displayUser = user
+    ? {
+        name: profile?.display_name ?? user.email?.split("@")[0] ?? "User",
+        phone: profile?.phone ?? "",
+        email: profile?.email ?? user.email ?? "",
+      }
+    : null;
 
   const getInitials = (name: string) => {
     return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
