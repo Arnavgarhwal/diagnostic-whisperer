@@ -6,24 +6,29 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { symptomResponses, commonSymptoms } from "@/data/symptoms";
+import { commonSymptoms } from "@/data/symptoms";
 import SkullModel3D from "@/components/SkullModel3D";
 import HeartModel3D from "@/components/HeartModel3D";
 import AbdomenModel3D from "@/components/AbdomenModel3D";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { toast } from "@/hooks/use-toast";
 import CameraPainDetector from "@/components/CameraPainDetector";
+import { supabase } from "@/integrations/supabase/client";
+
+interface Analysis {
+  detectedSymptoms?: string[];
+  condition: string;
+  severity: string;
+  advice: string;
+  shouldSeeDoctor: boolean;
+  followUpQuestions?: string[];
+}
 
 interface Message {
   id: number;
   type: "user" | "bot";
   content: string;
-  analysis?: {
-    condition: string;
-    severity: string;
-    advice: string;
-    shouldSeeDoctor: boolean;
-  };
+  analysis?: Analysis;
 }
 
 // Use first 12 common symptoms for quick buttons
