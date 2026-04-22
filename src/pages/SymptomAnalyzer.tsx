@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Bot, User, AlertTriangle, CheckCircle, Activity, RefreshCw, Mic, MicOff, AlertCircle, Camera } from "lucide-react";
+import { Send, Bot, User, AlertTriangle, CheckCircle, Activity, RefreshCw, Mic, MicOff, AlertCircle, Camera, ListChecks, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { toast } from "@/hooks/use-toast";
 import CameraPainDetector from "@/components/CameraPainDetector";
 import { supabase } from "@/integrations/supabase/client";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Analysis {
   detectedSymptoms?: string[];

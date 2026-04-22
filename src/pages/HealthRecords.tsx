@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FileText,
@@ -16,6 +16,7 @@ import {
   X,
   FileDown,
   Loader2,
+  Paperclip,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,14 +58,25 @@ const HealthRecords = () => {
   const [selectedCategory, setSelectedCategory] = useState<RecordType | "all">("all");
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<DbRecord | null>(null);
+  const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadForm, setUploadForm] = useState<{
     name: string;
     type: RecordType;
+    date: string;
     doctor: string;
     hospital: string;
     notes: string;
-  }>({ name: "", type: "prescription", doctor: "", hospital: "", notes: "" });
+  }>({
+    name: "",
+    type: "prescription",
+    date: new Date().toISOString().split("T")[0],
+    doctor: "",
+    hospital: "",
+    notes: "",
+  });
 
   const loadRecords = useCallback(async () => {
     if (!user) return;
@@ -95,6 +107,25 @@ const HealthRecords = () => {
     return matchesSearch && matchesCategory;
   });
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const validTypes = ["application/pdf", "image/jpeg", "image/png", "image/jpg", "image/webp"];
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (!validTypes.includes(file.type)) {
+      toast({ title: "Invalid file type", description: "Please upload a PDF or image (JPG, PNG, WEBP).", variant: "destructive" });
+      return;
+    }
+    if (file.size > maxSize) {
+      toast({ title: "File too large", description: "Maximum size is 10MB.", variant: "destructive" });
+      return;
+    }
+    setUploadFile(file);
+    if (!uploadForm.name.trim()) {
+      setUploadForm((prev) => ({ ...prev, name: file.name.replace(/\.[^/.]+$/, "") }));
+    }
+  };
+
   const handleUpload = async () => {
     if (!user) return;
     if (!uploadForm.name.trim()) {
@@ -102,6 +133,25 @@ const HealthRecords = () => {
       return;
     }
     setIsSaving(true);
+
+    let storagePath: string | null = null;
+    if (uploadFile) {
+      const ext = uploadFile.name.split(".").pop() || "bin";
+      storagePath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("health-records")
+        .upload(storagePath, uploadFile, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: uploadFile.type,
+        });
+      if (upErr) {
+        setIsSaving(false);
+        toast({ title: "File upload failed", description: upErr.message, variant: "destructive" });
+        return;
+      }
+    }
+
     const meta = [uploadForm.doctor && `Doctor: ${uploadForm.doctor}`, uploadForm.hospital && `Hospital: ${uploadForm.hospital}`, uploadForm.notes]
       .filter(Boolean)
       .join("\n");
@@ -110,30 +160,72 @@ const HealthRecords = () => {
       user_id: user.id,
       title: uploadForm.name,
       record_type: uploadForm.type,
-      record_date: new Date().toISOString().split("T")[0],
+      record_date: uploadForm.date || new Date().toISOString().split("T")[0],
       notes: meta || null,
+      file_url: storagePath,
     });
     setIsSaving(false);
     if (error) {
-      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+      // Roll back storage object on DB failure
+      if (storagePath) await supabase.storage.from("health-records").remove([storagePath]);
+      toast({ title: "Save failed", description: error.message, variant: "destructive" });
       return;
     }
     setShowUploadModal(false);
-    setUploadForm({ name: "", type: "prescription", doctor: "", hospital: "", notes: "" });
+    setUploadFile(null);
+    setUploadForm({
+      name: "",
+      type: "prescription",
+      date: new Date().toISOString().split("T")[0],
+      doctor: "",
+      hospital: "",
+      notes: "",
+    });
     toast({ title: "Record Saved", description: "Your health record has been saved securely." });
     loadRecords();
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (record: DbRecord) => {
     const prev = records;
-    setRecords(records.filter((r) => r.id !== id));
-    const { error } = await supabase.from("medical_records").delete().eq("id", id);
+    setRecords(records.filter((r) => r.id !== record.id));
+    const { error } = await supabase.from("medical_records").delete().eq("id", record.id);
     if (error) {
       setRecords(prev);
       toast({ title: "Delete failed", description: error.message, variant: "destructive" });
       return;
     }
+    if (record.file_url) {
+      await supabase.storage.from("health-records").remove([record.file_url]);
+    }
     toast({ title: "Record Deleted" });
+  };
+
+  const openRecord = async (record: DbRecord) => {
+    setSelectedRecord(record);
+    setSignedUrl(null);
+    if (record.file_url) {
+      const { data, error } = await supabase.storage
+        .from("health-records")
+        .createSignedUrl(record.file_url, 600);
+      if (!error && data?.signedUrl) {
+        setSignedUrl(data.signedUrl);
+      }
+    }
+  };
+
+  const handleDownload = async (record: DbRecord) => {
+    if (!record.file_url) {
+      toast({ title: "No file", description: "This record has no attached file." });
+      return;
+    }
+    const { data, error } = await supabase.storage
+      .from("health-records")
+      .createSignedUrl(record.file_url, 60, { download: true });
+    if (error || !data?.signedUrl) {
+      toast({ title: "Download failed", description: error?.message ?? "Try again", variant: "destructive" });
+      return;
+    }
+    window.open(data.signedUrl, "_blank");
   };
 
   const getTypeBadge = (type: string | null) => {
@@ -154,7 +246,7 @@ const HealthRecords = () => {
     name: r.title,
     type: (r.record_type ?? "other") as string,
     date: r.record_date ?? r.created_at.split("T")[0],
-    fileType: "pdf",
+    fileType: r.file_url ? r.file_url.split(".").pop() ?? "file" : "—",
     size: "—",
     notes: r.notes ?? "",
   }));
@@ -216,7 +308,7 @@ const HealthRecords = () => {
             </Button>
             <Button variant="hero" onClick={() => setShowUploadModal(true)}>
               <Plus className="w-4 h-4 mr-2" />
-              Add Record
+              Upload Record
             </Button>
           </div>
 
@@ -253,9 +345,17 @@ const HealthRecords = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-foreground truncate">{record.title}</h3>
-                      <Badge className={`${getTypeBadge(record.record_type)} text-xs mt-1`}>
-                        {record.record_type ?? "other"}
-                      </Badge>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <Badge className={`${getTypeBadge(record.record_type)} text-xs`}>
+                          {record.record_type ?? "other"}
+                        </Badge>
+                        {record.file_url && (
+                          <Badge variant="outline" className="text-xs">
+                            <Paperclip className="w-3 h-3 mr-1" />
+                            File
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -270,17 +370,23 @@ const HealthRecords = () => {
                   <div className="flex items-center justify-between pt-3 border-t border-border">
                     <span className="text-xs text-muted-foreground">Private</span>
                     <div className="flex items-center gap-1">
-                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setSelectedRecord(record)}>
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openRecord(record)}>
                         <Eye className="w-4 h-4" />
                       </Button>
-                      <Button size="icon" variant="ghost" className="h-8 w-8" disabled>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        disabled={!record.file_url}
+                        onClick={() => handleDownload(record)}
+                      >
                         <Download className="w-4 h-4" />
                       </Button>
                       <Button
                         size="icon"
                         variant="ghost"
                         className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => handleDelete(record.id)}
+                        onClick={() => handleDelete(record)}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -296,11 +402,11 @@ const HealthRecords = () => {
               <FileText className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold mb-2">No records found</h3>
               <p className="text-muted-foreground mb-4">
-                {search ? "Try a different search term" : "Add your first health record"}
+                {search ? "Try a different search term" : "Upload your first health record"}
               </p>
               <Button variant="hero" onClick={() => setShowUploadModal(true)}>
                 <Upload className="w-4 h-4 mr-2" />
-                Add Record
+                Upload Record
               </Button>
             </div>
           )}
@@ -314,23 +420,56 @@ const HealthRecords = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={() => setShowUploadModal(false)}
+            onClick={() => !isSaving && setShowUploadModal(false)}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-background rounded-2xl max-w-md w-full p-6"
+              className="bg-background rounded-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold">Add Health Record</h2>
-                <Button size="icon" variant="ghost" onClick={() => setShowUploadModal(false)}>
+                <h2 className="text-xl font-bold">Upload Health Record</h2>
+                <Button size="icon" variant="ghost" onClick={() => setShowUploadModal(false)} disabled={isSaving}>
                   <X className="w-4 h-4" />
                 </Button>
               </div>
 
               <div className="space-y-4">
+                {/* File picker */}
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Attach File (PDF or image, max 10MB)</label>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="application/pdf,image/jpeg,image/png,image/jpg,image/webp"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  {uploadFile ? (
+                    <div className="flex items-center gap-2 p-3 rounded-lg border border-primary/30 bg-primary/5">
+                      <Paperclip className="w-4 h-4 text-primary flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{uploadFile.name}</p>
+                        <p className="text-xs text-muted-foreground">{(uploadFile.size / 1024).toFixed(1)} KB</p>
+                      </div>
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setUploadFile(null)}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      className="w-full justify-center border-dashed"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      Choose file (optional)
+                    </Button>
+                  )}
+                </div>
+
                 <div>
                   <label className="text-sm font-medium mb-1 block">Document Name *</label>
                   <Input
@@ -340,20 +479,30 @@ const HealthRecords = () => {
                   />
                 </div>
 
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Document Type</label>
-                  <select
-                    className="w-full h-10 px-3 rounded-md border border-border bg-background"
-                    value={uploadForm.type}
-                    onChange={(e) => setUploadForm({ ...uploadForm, type: e.target.value as RecordType })}
-                  >
-                    <option value="prescription">Prescription</option>
-                    <option value="report">Lab Report</option>
-                    <option value="scan">Scan / Imaging</option>
-                    <option value="vaccination">Vaccination</option>
-                    <option value="insurance">Insurance</option>
-                    <option value="other">Other</option>
-                  </select>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Category</label>
+                    <select
+                      className="w-full h-10 px-3 rounded-md border border-border bg-background"
+                      value={uploadForm.type}
+                      onChange={(e) => setUploadForm({ ...uploadForm, type: e.target.value as RecordType })}
+                    >
+                      <option value="prescription">Prescription</option>
+                      <option value="report">Lab Report</option>
+                      <option value="scan">Scan / Imaging</option>
+                      <option value="vaccination">Vaccination</option>
+                      <option value="insurance">Insurance</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Date</label>
+                    <Input
+                      type="date"
+                      value={uploadForm.date}
+                      onChange={(e) => setUploadForm({ ...uploadForm, date: e.target.value })}
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -385,8 +534,8 @@ const HealthRecords = () => {
                 </div>
 
                 <Button variant="hero" className="w-full" onClick={handleUpload} disabled={isSaving}>
-                  {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
-                  Save Record
+                  {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+                  {isSaving ? "Uploading…" : "Save Record"}
                 </Button>
               </div>
             </motion.div>
@@ -401,18 +550,28 @@ const HealthRecords = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={() => setSelectedRecord(null)}
+            onClick={() => {
+              setSelectedRecord(null);
+              setSignedUrl(null);
+            }}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-background rounded-2xl max-w-md w-full p-6"
+              className="bg-background rounded-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold">{selectedRecord.title}</h2>
-                <Button size="icon" variant="ghost" onClick={() => setSelectedRecord(null)}>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => {
+                    setSelectedRecord(null);
+                    setSignedUrl(null);
+                  }}
+                >
                   <X className="w-4 h-4" />
                 </Button>
               </div>
@@ -424,7 +583,35 @@ const HealthRecords = () => {
                 {new Date(selectedRecord.record_date ?? selectedRecord.created_at).toLocaleDateString()}
               </p>
               {selectedRecord.notes && (
-                <div className="p-3 rounded-lg bg-accent/30 text-sm whitespace-pre-line">{selectedRecord.notes}</div>
+                <div className="p-3 rounded-lg bg-accent/30 text-sm whitespace-pre-line mb-3">
+                  {selectedRecord.notes}
+                </div>
+              )}
+              {selectedRecord.file_url && (
+                <div className="space-y-2">
+                  {signedUrl ? (
+                    selectedRecord.file_url.toLowerCase().endsWith(".pdf") ? (
+                      <iframe
+                        src={signedUrl}
+                        title="Record file"
+                        className="w-full h-[60vh] rounded-lg border border-border"
+                      />
+                    ) : (
+                      <img
+                        src={signedUrl}
+                        alt={selectedRecord.title}
+                        className="w-full max-h-[60vh] object-contain rounded-lg border border-border"
+                      />
+                    )
+                  ) : (
+                    <div className="flex items-center justify-center h-32 text-muted-foreground">
+                      <Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading file…
+                    </div>
+                  )}
+                  <Button variant="outline" className="w-full" onClick={() => handleDownload(selectedRecord)}>
+                    <Download className="w-4 h-4 mr-2" /> Download
+                  </Button>
+                </div>
               )}
             </motion.div>
           </motion.div>
