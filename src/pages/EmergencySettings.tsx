@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Plus, Trash2, User, Phone, MessageSquare, Save, RotateCcw, Shield, Clock, Smartphone, Globe } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, User, Phone, MessageSquare, Save, RotateCcw, Shield, Clock, Smartphone, Globe, ArrowUp, ArrowDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,7 @@ import { useEmergencySettings, EmergencyContact } from "@/hooks/useEmergencySett
 import { isNativePlatform, getPlatform } from "@/services/nativeSmsService";
 
 const EmergencySettings = () => {
-  const { settings, saveSettings, addContact, updateContact, removeContact, resetToDefaults } = useEmergencySettings();
+  const { settings, saveSettings, addContact, updateContact, removeContact, moveContact, resetToDefaults } = useEmergencySettings();
   const [newContact, setNewContact] = useState<EmergencyContact>({
     name: "",
     phone: "",
@@ -181,6 +181,9 @@ const EmergencySettings = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <p className="text-xs text-muted-foreground -mb-2">
+                Higher contacts are alerted first. Use the arrows to reorder priority.
+              </p>
               {settings.contacts.map((contact, index) => (
                 <motion.div
                   key={index}
@@ -189,15 +192,44 @@ const EmergencySettings = () => {
                   className="p-4 border rounded-lg bg-muted/30 space-y-4"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-medium text-foreground">Contact {index + 1}</span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleRemoveContact(index)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold">
+                        {index + 1}
+                      </span>
+                      <span className="font-medium text-foreground">
+                        {index === 0 ? "Primary Contact" : `Contact ${index + 1}`}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        disabled={index === 0}
+                        onClick={() => moveContact(index, "up")}
+                        title="Move up (higher priority)"
+                      >
+                        <ArrowUp className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        disabled={index === settings.contacts.length - 1}
+                        onClick={() => moveContact(index, "down")}
+                        title="Move down (lower priority)"
+                      >
+                        <ArrowDown className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRemoveContact(index)}
+                        className="text-destructive hover:text-destructive h-8 w-8"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="grid gap-4 sm:grid-cols-2">

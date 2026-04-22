@@ -9,6 +9,7 @@ import Footer from "@/components/Footer";
 import { medicines, medicineCategories } from "@/data/mockData";
 import { useCart } from "@/hooks/useCart";
 import { toast } from "@/hooks/use-toast";
+import MyMedicinesManager from "@/components/MyMedicinesManager";
 
 const Medicines = () => {
   const [search, setSearch] = useState("");
@@ -75,6 +76,11 @@ const Medicines = () => {
               Get genuine medicines delivered to your doorstep. Upload prescription for Rx medicines.
             </p>
           </motion.div>
+
+          {/* My Medicines (per-user, secured) */}
+          <div className="max-w-4xl mx-auto">
+            <MyMedicinesManager />
+          </div>
 
           {/* Prescription Upload Banner */}
           <motion.div

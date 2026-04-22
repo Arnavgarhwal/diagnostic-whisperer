@@ -65,6 +65,13 @@ const Consultations = () => {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [lastAppointmentId, setLastAppointmentId] = useState<string | null>(null);
   const [resendingId, setResendingId] = useState<string | null>(null);
+  const [bookingError, setBookingError] = useState<{
+    title: string;
+    message: string;
+    code?: string;
+    details?: string;
+    hint?: string;
+  } | null>(null);
 
   // Redirect to /auth if not signed in
   useEffect(() => {
@@ -185,7 +192,27 @@ const Consultations = () => {
   };
 
   const handleProcessPayment = async () => {
-    if (!user || !selectedDoctor) return;
+    setBookingError(null);
+
+    if (!user) {
+      setBookingError({
+        title: "Not signed in",
+        message: "Your session has expired. Please sign in again to book.",
+        hint: "Click 'Sign in' in the navbar.",
+      });
+      return;
+    }
+    if (!selectedDoctor) {
+      setBookingError({ title: "No doctor selected", message: "Please pick a doctor first." });
+      return;
+    }
+    if (!selectedDate || !selectedTime) {
+      setBookingError({
+        title: "Missing date or time",
+        message: "Please select both a date and a time slot before paying.",
+      });
+      return;
+    }
 
     if (paymentMethod === "upi" && !upiId.includes("@")) {
       toast({ title: "Invalid UPI ID", description: "Please enter a valid UPI ID (e.g., name@upi)", variant: "destructive" });
@@ -231,7 +258,28 @@ const Consultations = () => {
     setIsProcessingPayment(false);
 
     if (error || !inserted) {
-      toast({ title: "Booking Failed", description: error?.message ?? "Please try again.", variant: "destructive" });
+      const errAny = error as (typeof error & { code?: string; details?: string; hint?: string }) | null;
+      const code = errAny?.code;
+      let title = "Booking failed";
+      let hint = errAny?.hint;
+      if (code === "42501" || /row-level security|permission denied/i.test(error?.message ?? "")) {
+        title = "Access denied (RLS)";
+        hint = hint ?? "Your account doesn't have permission to create this booking. Try signing out and back in.";
+      } else if (/jwt|auth/i.test(error?.message ?? "")) {
+        title = "Authentication problem";
+        hint = hint ?? "Sign in again and retry.";
+      } else if (code === "23502") {
+        title = "Missing required field";
+        hint = hint ?? "One of the required booking fields was empty.";
+      }
+      setBookingError({
+        title,
+        message: error?.message ?? "Could not create the appointment.",
+        code,
+        details: errAny?.details ?? undefined,
+        hint,
+      });
+      toast({ title, description: error?.message ?? "Please try again.", variant: "destructive" });
       return;
     }
 
@@ -254,6 +302,7 @@ const Consultations = () => {
     setCardExpiry("");
     setCardCvv("");
     setLastAppointmentId(null);
+    setBookingError(null);
   };
 
   const cancelAppointment = async (id: string) => {
@@ -491,6 +540,34 @@ const Consultations = () => {
             </div>
 
             <div className="p-6 space-y-6">
+              {bookingError && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 space-y-2"
+                  role="alert"
+                >
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-destructive">{bookingError.title}</p>
+                      <p className="text-sm text-foreground mt-1 break-words">{bookingError.message}</p>
+                      {bookingError.code && (
+                        <p className="text-xs font-mono text-muted-foreground mt-1">code: {bookingError.code}</p>
+                      )}
+                      {bookingError.details && (
+                        <p className="text-xs text-muted-foreground mt-1 break-words">{bookingError.details}</p>
+                      )}
+                      {bookingError.hint && (
+                        <p className="text-xs text-muted-foreground mt-2 italic">💡 {bookingError.hint}</p>
+                      )}
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setBookingError(null)}>
+                      <span className="sr-only">Dismiss</span>×
+                    </Button>
+                  </div>
+                </motion.div>
+              )}
               {bookingStep === "details" && (
                 <>
                   <div>
