@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import GlobalFallDetection from "./components/GlobalFallDetection";
+import ProtectedRoute from "./components/ProtectedRoute";
 import Index from "./pages/Index";
 import DiseaseLibrary from "./pages/DiseaseLibrary";
 import Medicines from "./pages/Medicines";
@@ -60,14 +61,14 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/diseases" element={<DiseaseLibrary />} />
-          <Route path="/medicines" element={<Medicines />} />
+          <Route path="/medicines" element={<ProtectedRoute><Medicines /></ProtectedRoute>} />
           <Route path="/diagnostics" element={<Diagnostics />} />
-          <Route path="/consultations" element={<Consultations />} />
+          <Route path="/consultations" element={<ProtectedRoute><Consultations /></ProtectedRoute>} />
           <Route path="/symptom-analyzer" element={<SymptomAnalyzer />} />
           <Route path="/blog" element={<Blog />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/auth" element={<Auth />} />
-          <Route path="/health-records" element={<HealthRecords />} />
+          <Route path="/health-records" element={<ProtectedRoute><HealthRecords /></ProtectedRoute>} />
           <Route path="/profile" element={<ProfileSettings />} />
           <Route path="/vitals" element={<VitalsTracker />} />
           <Route path="/family" element={<FamilyHealth />} />

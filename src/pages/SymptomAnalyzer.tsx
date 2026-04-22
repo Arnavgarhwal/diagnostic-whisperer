@@ -6,24 +6,29 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { symptomResponses, commonSymptoms } from "@/data/symptoms";
+import { commonSymptoms } from "@/data/symptoms";
 import SkullModel3D from "@/components/SkullModel3D";
 import HeartModel3D from "@/components/HeartModel3D";
 import AbdomenModel3D from "@/components/AbdomenModel3D";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { toast } from "@/hooks/use-toast";
 import CameraPainDetector from "@/components/CameraPainDetector";
+import { supabase } from "@/integrations/supabase/client";
+
+interface Analysis {
+  detectedSymptoms?: string[];
+  condition: string;
+  severity: string;
+  advice: string;
+  shouldSeeDoctor: boolean;
+  followUpQuestions?: string[];
+}
 
 interface Message {
   id: number;
   type: "user" | "bot";
   content: string;
-  analysis?: {
-    condition: string;
-    severity: string;
-    advice: string;
-    shouldSeeDoctor: boolean;
-  };
+  analysis?: Analysis;
 }
 
 // Use first 12 common symptoms for quick buttons
@@ -71,57 +76,65 @@ const SymptomAnalyzer = () => {
     scrollToBottom();
   }, [messages]);
 
-  const analyzeSymptoms = (text: string) => {
-    const lowerText = text.toLowerCase();
-    
-    // Check for matching symptoms
-    for (const [symptom, response] of Object.entries(symptomResponses)) {
-      if (lowerText.includes(symptom)) {
-        return response;
-      }
-    }
+  const analyzeWithAI = async (text: string, history: Message[]): Promise<Analysis> => {
+    const conversationHistory = history
+      .filter((m) => m.content)
+      .map((m) => ({ role: m.type === "user" ? "user" : "assistant", content: m.content }));
 
-    // Default response for unrecognized symptoms
-    return {
-      condition: "Unable to determine specific condition",
-      severity: "Unknown",
-      advice: "Based on your description, I couldn't identify specific symptoms. Please try describing your symptoms more specifically, such as: location of discomfort, duration, intensity (mild/moderate/severe), and any accompanying symptoms. For accurate diagnosis, please consult a healthcare professional.",
-      shouldSeeDoctor: true
-    };
+    const { data, error } = await supabase.functions.invoke("analyze-symptoms", {
+      body: { description: text, history: conversationHistory },
+    });
+
+    if (error) {
+      const ctx = (error as { context?: { status?: number } }).context;
+      if (ctx?.status === 429) throw new Error("AI is busy. Please wait a moment and try again.");
+      if (ctx?.status === 402) throw new Error("AI credits exhausted. Please add credits in Lovable Cloud.");
+      throw new Error(error.message || "Analysis failed");
+    }
+    const result = data as { error?: string } & Partial<Analysis>;
+    if (!result || result.error) throw new Error(result?.error || "Analysis failed");
+    return result as Analysis;
   };
 
-  const handleSend = (customInput?: string) => {
+  const handleSend = async (customInput?: string) => {
     const textToSend = customInput || input;
     if (!textToSend.trim()) return;
 
-    // Stop listening if voice was active
-    if (isListening) {
-      stopListening();
-    }
+    if (isListening) stopListening();
     resetTranscript();
 
     const userMessage: Message = {
       id: messages.length + 1,
       type: "user",
-      content: textToSend
+      content: textToSend,
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    const nextHistory = [...messages, userMessage];
+    setMessages(nextHistory);
     setInput("");
     setIsTyping(true);
 
-    // Simulate AI response delay
-    setTimeout(() => {
-      const analysis = analyzeSymptoms(textToSend);
+    try {
+      const analysis = await analyzeWithAI(textToSend, messages);
       const botMessage: Message = {
-        id: messages.length + 2,
+        id: nextHistory.length + 1,
         type: "bot",
-        content: `Based on your symptoms, here's my analysis:`,
-        analysis
+        content: analysis.detectedSymptoms?.length
+          ? `I detected: ${analysis.detectedSymptoms.join(", ")}. Here's my analysis:`
+          : "Here's my analysis:",
+        analysis,
       };
-      setMessages(prev => [...prev, botMessage]);
+      setMessages((prev) => [...prev, botMessage]);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Something went wrong";
+      toast({ title: "Analysis failed", description: msg, variant: "destructive" });
+      setMessages((prev) => [
+        ...prev,
+        { id: nextHistory.length + 1, type: "bot", content: `⚠️ ${msg}` },
+      ]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
   const handleQuickSymptom = (symptom: string) => {

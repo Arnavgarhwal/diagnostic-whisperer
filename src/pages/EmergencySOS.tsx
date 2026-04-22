@@ -24,6 +24,8 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { toast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
+import { sendEmergencyAlertsNative, isNativePlatform } from "@/services/nativeSmsService";
+import { getCurrentLocation } from "@/services/nativeMotionService";
 
 interface EmergencyContact {
   id: string;
@@ -152,21 +154,72 @@ const EmergencySOS = () => {
     });
   };
 
-  const handleSOS = () => {
+  const handleSOS = async () => {
+    if (sosActive) return;
     setSosActive(true);
-    
-    // Simulate SOS alert
+
     toast({
       title: "🚨 SOS Activated!",
-      description: "Emergency services notified. Help is on the way!",
+      description: "Sending emergency alerts to your contacts now…",
       variant: "destructive",
     });
 
-    // Auto-call emergency number after 3 seconds
+    // Best-effort location (don't block alert sending)
+    let location: { lat: number; lng: number } | null = null;
+    try {
+      location = await Promise.race([
+        getCurrentLocation(),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
+      ]);
+    } catch {
+      location = null;
+    }
+
+    const userContacts = contacts
+      .filter((c) => !["1", "2", "3"].includes(c.id))
+      .map((c) => ({ name: c.name, phone: c.phone, preferredMethod: "both" as const }));
+
+    if (userContacts.length > 0) {
+      try {
+        if (isNativePlatform()) {
+          await sendEmergencyAlertsNative(userContacts, location);
+        } else {
+          // Web: open SMS + WhatsApp directly without confirmation prompts
+          const locText = location
+            ? `📍 https://maps.google.com/?q=${location.lat},${location.lng}`
+            : "📍 Location unavailable";
+          const message = `🚨 EMERGENCY! I need help. ${locText}`;
+          const encoded = encodeURIComponent(message);
+          userContacts.forEach((c, i) => {
+            const phone = c.phone.replace(/\D/g, "");
+            setTimeout(() => {
+              window.open(`sms:${phone}?body=${encoded}`, "_self");
+              setTimeout(() => {
+                window.open(`https://wa.me/${phone}?text=${encoded}`, "_blank");
+              }, 400);
+            }, i * 800);
+          });
+        }
+        toast({
+          title: "Alerts Sent",
+          description: `Emergency message sent to ${userContacts.length} contact(s).`,
+        });
+      } catch (e) {
+        console.error("SOS send failed:", e);
+      }
+    } else {
+      toast({
+        title: "No personal emergency contacts",
+        description: "Add contacts in Emergency Settings for instant alerts. Calling 112…",
+        variant: "destructive",
+      });
+    }
+
+    // Auto-call official emergency services
     setTimeout(() => {
       handleCall("112", "Emergency Services");
       setSosActive(false);
-    }, 3000);
+    }, 1500);
   };
 
   const handleGetDirections = (hospital: Hospital) => {
