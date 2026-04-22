@@ -302,6 +302,7 @@ const Consultations = () => {
     setCardExpiry("");
     setCardCvv("");
     setLastAppointmentId(null);
+    setBookingError(null);
   };
 
   const cancelAppointment = async (id: string) => {
