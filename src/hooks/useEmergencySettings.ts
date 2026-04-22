@@ -44,15 +44,18 @@ export const useEmergencySettings = () => {
     setIsLoaded(true);
   }, []);
 
-  // Save settings to localStorage
+  const persist = (updated: EmergencySettings) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    } catch (error) {
+      console.error('Failed to save emergency settings:', error);
+    }
+  };
+
   const saveSettings = useCallback((newSettings: Partial<EmergencySettings>) => {
     setSettings(prev => {
       const updated = { ...prev, ...newSettings };
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      } catch (error) {
-        console.error('Failed to save emergency settings:', error);
-      }
+      persist(updated);
       return updated;
     });
   }, []);
@@ -60,7 +63,7 @@ export const useEmergencySettings = () => {
   const addContact = useCallback((contact: EmergencyContact) => {
     setSettings(prev => {
       const updated = { ...prev, contacts: [...prev.contacts, contact] };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      persist(updated);
       return updated;
     });
   }, []);
@@ -70,7 +73,7 @@ export const useEmergencySettings = () => {
       const contacts = [...prev.contacts];
       contacts[index] = contact;
       const updated = { ...prev, contacts };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      persist(updated);
       return updated;
     });
   }, []);
@@ -79,14 +82,26 @@ export const useEmergencySettings = () => {
     setSettings(prev => {
       const contacts = prev.contacts.filter((_, i) => i !== index);
       const updated = { ...prev, contacts };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      persist(updated);
+      return updated;
+    });
+  }, []);
+
+  const moveContact = useCallback((index: number, direction: 'up' | 'down') => {
+    setSettings(prev => {
+      const contacts = [...prev.contacts];
+      const target = direction === 'up' ? index - 1 : index + 1;
+      if (target < 0 || target >= contacts.length) return prev;
+      [contacts[index], contacts[target]] = [contacts[target], contacts[index]];
+      const updated = { ...prev, contacts };
+      persist(updated);
       return updated;
     });
   }, []);
 
   const resetToDefaults = useCallback(() => {
     setSettings(DEFAULT_SETTINGS);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_SETTINGS));
+    persist(DEFAULT_SETTINGS);
   }, []);
 
   return {
@@ -96,6 +111,7 @@ export const useEmergencySettings = () => {
     addContact,
     updateContact,
     removeContact,
+    moveContact,
     resetToDefaults,
   };
 };
